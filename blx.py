@@ -289,7 +289,6 @@ shift
             if bin_dir.lower() not in path_env.lower():
                 self.add_to_shell_path(bin_dir)
                 
-            print(f"✅ Commande globale configurée: {blx_script}")
             return True
         except Exception as e:
             print(f"❌ Erreur setup commande globale: {e}")
@@ -1994,51 +1993,17 @@ def run_setup_wizard():
         print("   - blx p        : Lancer un export")
         print("   - blx p ls     : Voir l'historique")
         print("   - blx p --gui  : Lancer l'interface graphique")
-        print("   - blx unpack   : Désassembler un projet")
-        print("   - blx new      : Reconfigurer")
+        print("   - blx stop     : Quitter/Arrêter")
 
-        if choice != "3":
-            # Menu post-setup persistant : on tourne en boucle jusqu'au Quitter
-            while True:
-                print("\n" + "="*50)
-                print("Que souhaitez-vous faire maintenant ?")
-                print("  1. 🚀 Lancer un export (blx p)")
-                print("  2. 📋 Voir l'historique (blx p ls)")
-                if choice == "2":
-                    print("  3. 🖥️  Lancer l'interface graphique (blx p --gui)")
-                print("  s. Quitter l'application (--stop)")
-
-                next_action = input("\nVotre choix [s]: ").strip().lower() or "s"
-
-                if next_action in ("1", "blx p", "p", "export"):
-                    import argparse
-                    args = argparse.Namespace(
-                        path=None, command=None, name=None, exclude=None, include=None,
-                        max_size=None, unlimited=False, cl=True, yes=False,
-                        gui=False, setup=False, uninstall=False, unpack=False, no_merge=False
-                    )
-                    app = CLIApp(args)
-                    app.run_interactive()
-                elif next_action in ("2", "blx p ls", "ls", "historique"):
-                    import argparse
-                    fake_args = argparse.Namespace(
-                        path='ls', command=None, name=None, exclude=None, include=None,
-                        max_size=None, unlimited=False, cl=True, yes=False,
-                        gui=False, setup=False, uninstall=False, unpack=False, no_merge=False
-                    )
-                    app = CLIApp(fake_args)
-                    app.list_history()
-                elif next_action in ("3", "blx p --gui", "gui") and choice == "2":
-                    check_and_install_dependencies(mode="full")
-                    app = ProfessionalApp()
-                    app.run()
-                elif next_action in ("s", "stop", "q", "quit", "0", "blx p --stop", "blx stop", "blx p -s"):
-                    print("👋 À bientôt !")
-                    break
-                else:
-                    print("⚠️ Choix invalide.")
+        if choice == "2":
+            ans = input("\n▶️  Voulez-vous lancer l'interface graphique maintenant ? (O/n) : ").strip().lower()
+            if ans != 'n':
+                check_and_install_dependencies(mode="full")
+                app = ProfessionalApp()
+                app.run()
         else:
-            print("\n✅ Configuration système terminée. Vous pouvez maintenant utiliser 'blx' n'importe où.")
+            print("\n� Tapez 'blx p' pour commencer votre premier export.")
+
     except Exception as e:
         print(f"❌ Erreur durant le setup: {e}")
 
