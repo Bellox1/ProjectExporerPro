@@ -14,8 +14,6 @@ pip-delete-this-directory.txt
 .DS_Store
 *.bak
 *.tmp
-icon.png
-icon.xpm
 ProjectExplorer/
 *.zip
 *.txt
