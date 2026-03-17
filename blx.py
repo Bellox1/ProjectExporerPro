@@ -1933,7 +1933,8 @@ def run_setup_wizard():
 
         next_action = input("\nVotre choix [q]: ").strip().lower() or "q"
 
-        if next_action == "1":
+        # Accepte aussi les noms de commandes directement
+        if next_action in ("1", "blx p", "p", "export"):
             import argparse
             args = argparse.Namespace(
                 path=None, command=None, name=None, exclude=None, include=None,
@@ -1942,7 +1943,8 @@ def run_setup_wizard():
             )
             app = CLIApp(args)
             app.run_interactive()
-        elif next_action == "2":
+        elif next_action in ("2", "blx p ls", "ls", "historique"):
+            import argparse
             fake_args = argparse.Namespace(
                 path='ls', command=None, name=None, exclude=None, include=None,
                 max_size=None, unlimited=False, cl=True, yes=False,
@@ -1950,7 +1952,7 @@ def run_setup_wizard():
             )
             app = CLIApp(fake_args)
             app.list_history()
-        elif next_action == "3" and choice == "2":
+        elif next_action in ("3", "blx p --gui", "gui") and choice == "2":
             check_and_install_dependencies(mode="full")
             app = ProfessionalApp()
             app.run()
