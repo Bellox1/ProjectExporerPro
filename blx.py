@@ -109,8 +109,9 @@ class ProfessionalApp:
         self.log_queue = queue.Queue()
         
         # Initialisation logique
-        self.check_first_run()
-        self.setup_global_command()
+        if not getattr(self, 'skip_init_setup', False):
+            self.check_first_run()
+            self.setup_global_command()
         self.load_config()
         self.load_projects()
         self.setup_fonts()
@@ -2077,11 +2078,15 @@ def run_setup_wizard():
         if choice == "2":
             ans = input("\n▶️  Voulez-vous lancer l'interface graphique maintenant ? (O/n) : ").strip().lower()
             if ans != 'n':
-                check_and_install_dependencies(mode="full")
-                app = ProfessionalApp()
-                app.run()
+                try:
+                    # Lancement en processus séparé propre
+                    cmd = [sys.executable, os.path.abspath(__file__), "--gui"]
+                    subprocess.Popen(cmd, start_new_session=True)
+                    print("\n🚀 Lancement de l'interface graphique demandé...")
+                except Exception as e:
+                    print(f"⚠️ Erreur lors du lancement : {e}")
         else:
-            print("\n� Tapez 'blx p' pour commencer votre premier export.")
+            print("\n💡 Tapez 'blx p' pour commencer votre premier export.")
 
     except Exception as e:
         print(f"❌ Erreur durant le setup: {e}")
@@ -2265,7 +2270,10 @@ def main():
                     break
                 else: print("⚠️ Choix invalide.")
             else:
-                parser.print_help()
+                # Mode non-TTY (ex: Raccourci Bureau) -> Lancer GUI par défaut
+                check_and_install_dependencies(mode="full")
+                app = ProfessionalApp()
+                app.run()
                 break
     except Exception as e:
         print(f"ERREUR: {e}")
