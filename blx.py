@@ -246,6 +246,8 @@ elif [ "$1" == "unpack" ]; then
     "{sys.executable}" "{self.main_script}" unpack "${{@:2}}"
 elif [ "$1" == "new" ]; then
     "{sys.executable}" "{self.main_script}" --setup
+elif [ "$1" == "stop" ]; then
+    "{sys.executable}" "{self.main_script}" --stop
 elif [ "$1" == "uninstall" ]; then
     "{sys.executable}" "{self.main_script}" --uninstall
 else
@@ -254,6 +256,7 @@ else
     echo "       blx p ls         (Historique)"
     echo "       blx unpack       (Désassembler un projet)"
     echo "       blx new          (Configuration/Installation)"
+    echo "       blx stop         (Quitter/Arrêter)"
     echo "       blx uninstall    (Supprimer l'application)"
     echo "       blx --help       (Aide détaillée)"
 fi
@@ -2049,6 +2052,7 @@ def main():
     parser.add_argument('--setup', action='store_true', help='Lancer l\'assistant de configuration')
     parser.add_argument('--uninstall', action='store_true', help='Désinstaller l\'application')
     parser.add_argument('--unpack', action='store_true', help='Désassembler un projet (v3.0)')
+    parser.add_argument('-s', '--stop', action='store_true', help='Arrêter et quitter l\'application')
     
     # Compatibility
     parser.add_argument('--no-merge', action='store_true', help='Désactiver la fusion')
@@ -2056,6 +2060,11 @@ def main():
     args = parser.parse_args()
 
     try:
+        # Commande Stop / Quitter
+        if getattr(args, 'stop', False):
+            print("\n👋 Arrêt de Project Explorer Pro...")
+            sys.exit(0)
+
         # Mode Setup (blx new)
         if getattr(args, 'setup', False):
             run_setup_wizard()
@@ -2076,35 +2085,44 @@ def main():
             app = ProfessionalApp()
             app.run()
         else:
-            # Mode Interactif
+            # Mode Interactif (Boucle persistante)
             if sys.stdout.isatty():
-                print("1. 🖥️  Interface Graphique (GUI)")
-                print("2. ⌨️  Mode Terminal (Interactif)")
-                print("3. 📜 Voir l'historique (ls)")
-                print("4. ⚙️  Configuration / Installation (new)")
-                print("5. 🗑️  Désinstaller l'application (uninstall)")
-                print("q. Quitter")
-                
-                choice = input("\nVotre choix [1]: ").strip().lower() or "1"
-                
-                if choice == '1':
-                    check_and_install_dependencies(mode="full")
-                    app = ProfessionalApp()
-                    app.run()
-                elif choice == '2':
-                    check_and_install_dependencies(mode="core")
-                    app = CLIApp(args)
-                    app.run_interactive()
-                elif choice == '3' or choice == "ls":
-                    app = CLIApp(args)
-                    app.list_history()
-                elif choice == '4' or choice == "new":
-                    run_setup_wizard()
-                elif choice == '5' or choice == "uninstall":
-                    run_uninstall()
-                else:
-                    return
+                while True:
+                    print("\n" + "="*40)
+                    print(f"{'MENU PROJECT EXPLORER PRO':^40}")
+                    print("="*40)
+                    print("1. 🖥️  Interface Graphique (GUI)")
+                    print("2. ⌨️  Mode Terminal (Interactif)")
+                    print("3. 📜 Voir l'historique (ls)")
+                    print("4. ⚙️  Configuration / Installation (new)")
+                    print("5. � Désassemblage (unpack)")
+                    print("s. Quitter (--stop)")
+                    
+                    choice = input("\nVotre choix : ").strip().lower()
+                    
+                    if choice == '1':
+                        check_and_install_dependencies(mode="full")
+                        app = ProfessionalApp()
+                        app.run()
+                    elif choice == '2':
+                        app = CLIApp(args)
+                        app.run_interactive()
+                    elif choice == '3':
+                        fake_args = argparse.Namespace(path='ls', command='ls')
+                        app = CLIApp(fake_args)
+                        app.list_history()
+                    elif choice == '4':
+                        run_setup_wizard()
+                    elif choice == '5':
+                        app = CLIApp(args)
+                        app.run_unpacker()
+                    elif choice in ('s', 'stop', 'q', 'quit'):
+                        print("👋 À bientôt !")
+                        break
+                    else:
+                        print("⚠️ Choix invalide.")
             else:
+                parser.print_help()
                 check_and_install_dependencies(mode="full")
                 app = ProfessionalApp()
                 app.run()
