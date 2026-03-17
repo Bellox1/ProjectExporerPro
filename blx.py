@@ -4,8 +4,6 @@
 import os
 import sys
 import platform
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
 from datetime import datetime
 import subprocess
 import zipfile
@@ -14,6 +12,9 @@ import threading
 import queue
 import fnmatch
 import shutil
+
+# On ne fait plus d'importation globale de tkinter ou PIL
+# car cela bloque le lancement sur les systèmes sans interface graphique
 
 def check_and_install_dependencies(mode="full"):
     """Vérifie et installe les dépendances selon le mode choisi (core/full)"""
@@ -58,16 +59,23 @@ def check_and_install_dependencies(mode="full"):
         except Exception as e:
             print(f"❌ Erreur installation: {e}")
 
-try:
-    from PIL import Image, ImageTk
-    import humanize
-    import psutil
-except ImportError:
-    # This might happen if auto-install failed or during the restart phase
-    pass
+# Les imports seront fait à la demande dans les classes
 
 class ProfessionalApp:
     def __init__(self):
+        # Imports retardés pour ne pas bloquer le CLI
+        try:
+            global tk, ttk, filedialog, messagebox, Image, ImageTk, humanize, psutil
+            import tkinter as tk
+            from tkinter import ttk, filedialog, messagebox
+            from PIL import Image, ImageTk
+            import humanize
+            import psutil
+        except ImportError:
+            print("❌ Erreur: Bibliothèques graphiques manquantes.")
+            print("Lancez 'blx new' pour installer les dépendances nécessaires.")
+            sys.exit(1)
+
         # Création de la fenêtre principale
         self.root = tk.Tk()
         self.root.title("Project Explorer Pro")
@@ -1431,7 +1439,11 @@ Créé pour répondre à tous vos besoins !"""
     
     def run(self):
         """Lance l'application"""
-        self.root.mainloop()
+        try:
+            self.root.mainloop()
+        except KeyboardInterrupt:
+            self.root.destroy()
+            sys.exit(0)
 
 
 class CLIApp:
@@ -1441,6 +1453,13 @@ class CLIApp:
         self.app_folder = os.path.join(os.path.expanduser("~"), "ProjectExplorer")
         os.makedirs(self.app_folder, exist_ok=True)
         self.config_file = os.path.join(self.app_folder, "config.json")
+        try:
+            global humanize, psutil
+            import humanize
+            import psutil
+        except ImportError:
+            # On tente de continuer sans, ou on installe
+            pass
         self.load_config()
         
     def load_config(self):
@@ -1911,4 +1930,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n👋 Sortie rapide demandée. Au revoir !")
+        sys.exit(0)
