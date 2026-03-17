@@ -1922,27 +1922,40 @@ def run_setup_wizard():
         print("   - blx unpack   : Désassembler un projet")
         print("   - blx new      : Reconfigurer")
 
-        # Action post-setup selon le choix
-        print()
-        if choice == "1":
-            launch = input("▶️  Voulez-vous lancer un export maintenant ? (o/N): ").strip().lower()
-            if launch == 'o':
-                import argparse
-                args = argparse.Namespace(
-                    path=None, command=None, name=None, exclude=None, include=None,
-                    max_size=None, unlimited=False, cl=True, yes=False,
-                    gui=False, setup=False, uninstall=False, unpack=False, no_merge=False
-                )
-                app = CLIApp(args)
-                app.run_interactive()
-        elif choice == "2":
-            launch = input("▶️  Voulez-vous lancer l'interface graphique maintenant ? (O/n): ").strip().lower()
-            if launch != 'n':
-                check_and_install_dependencies(mode="full")
-                app = ProfessionalApp()
-                app.run()
+        # Menu post-setup : que faire maintenant ?
+        print("\n" + "="*50)
+        print("Que souhaitez-vous faire maintenant ?")
+        print("  1. 🚀 Lancer un export (blx p)")
+        print("  2. 📋 Voir l'historique (blx p ls)")
+        if choice == "2":
+            print("  3. 🖥️  Lancer l'interface graphique (blx p --gui)")
+        print("  q. Quitter")
+
+        next_action = input("\nVotre choix [q]: ").strip().lower() or "q"
+
+        if next_action == "1":
+            import argparse
+            args = argparse.Namespace(
+                path=None, command=None, name=None, exclude=None, include=None,
+                max_size=None, unlimited=False, cl=True, yes=False,
+                gui=False, setup=False, uninstall=False, unpack=False, no_merge=False
+            )
+            app = CLIApp(args)
+            app.run_interactive()
+        elif next_action == "2":
+            fake_args = argparse.Namespace(
+                path='ls', command=None, name=None, exclude=None, include=None,
+                max_size=None, unlimited=False, cl=True, yes=False,
+                gui=False, setup=False, uninstall=False, unpack=False, no_merge=False
+            )
+            app = CLIApp(fake_args)
+            app.list_history()
+        elif next_action == "3" and choice == "2":
+            check_and_install_dependencies(mode="full")
+            app = ProfessionalApp()
+            app.run()
         else:
-            print("✅ Configuration système terminée. Vous pouvez maintenant utiliser 'blx' depuis n'importe où.")
+            print("👋 À bientôt !")
     except Exception as e:
         print(f"❌ Erreur durant le setup: {e}")
 
