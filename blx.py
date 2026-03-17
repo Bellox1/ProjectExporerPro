@@ -117,6 +117,23 @@ class ProfessionalApp:
         self.setup_fonts()
         self.setup_ui()
         self.process_log_queue()
+
+        # Raccourcis clavier globaux
+        self.root.bind_all("<Control-a>", self.select_all)
+        self.root.bind_all("<Control-A>", self.select_all)
+    
+    def select_all(self, event):
+        """Sélectionne tout le texte dans le widget actif (Entrée ou Texte)"""
+        widget = event.widget
+        if isinstance(widget, tk.Text):
+            widget.tag_add(tk.SEL, "1.0", tk.END)
+            widget.mark_set(tk.INSERT, "1.0")
+            widget.see(tk.INSERT)
+            return "break"
+        elif isinstance(widget, (tk.Entry, ttk.Entry)):
+            widget.selection_range(0, tk.END)
+            widget.icursor(tk.END)
+            return "break"
     
     def check_first_run(self):
         """Vérifie si c'est la première exécution et installe sur le bureau"""
