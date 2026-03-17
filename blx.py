@@ -1573,18 +1573,21 @@ class CLIApp:
                 print("📭 Aucun projet exporté pour le moment.")
                 return
 
-            print(f"\n{'#'*60}")
-            print(f"{'HISTORIQUE DES EXPORTS':^60}")
-            print(f"{'#'*60}\n")
-            print(f"{'Nom du Projet':<25} | {'Date':<20} | {'Taille'}")
-            print("-" * 60)
+            print(f"\n{'#'*70}")
+            print(f"{'HISTORIQUE DES EXPORTS':^70}")
+            print(f"{'#'*70}\n")
+            print(f"{'#':<4} {'Nom':<22} {'Date':<20} {'Taille':<10} Fichier exporté")
+            print("-" * 70)
             
-            for p in reversed(projects[-20:]):
+            for idx, p in enumerate(reversed(projects[-20:]), 1):
                 size_str = f"{p.get('size', 0) / (1024*1024):.1f} Mo"
                 date_str = p.get('date', 'Inconnu')
-                name_str = str(p.get('name', 'Inconnu'))[:25]
-                print(f"{name_str:<25} | {date_str:<20} | {size_str}")
-            print(f"\n{'#'*60}\n")
+                name_str = str(p.get('name', 'Inconnu'))[:22]
+                export_path = p.get('path', '')
+                export_name = p.get('name', 'export')
+                txt_file = os.path.join(export_path, f"{export_name}.txt") if export_path else 'Inconnu'
+                print(f"{idx:<4} {name_str:<22} {date_str:<20} {size_str:<10} {txt_file}")
+            print(f"\n{'#'*70}\n")
         except Exception as e:
             print(f"❌ Erreur lors de la lecture de l'historique: {e}")
 
