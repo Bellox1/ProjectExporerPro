@@ -300,7 +300,7 @@ shift
                     f.write(content)
                 blx_script = blx_bat
             
-            print(f"✅ Commande globale configurée: {blx_script}")
+            # print(f"✅ Commande globale configurée: {blx_script}") # Silent in GUI
             
             # Vérifier si bin_dir est dans le PATH
             path_env = os.environ.get("PATH", "")
@@ -1508,15 +1508,23 @@ StartupNotify=true
         
         # Si c'est juste un nom de projet (pas un chemin), on cherche !
         if current and not os.path.isabs(current) and not current.startswith('.') and not '/' in current:
-            matches = CLIApp(None).find_project_by_name(current)
+            self.log(f"🔎 Recherche de '{current}'...", "info")
+            self.root.update() # Forcer l'affichage du log
+            
+            # Utilise CLIApp sans passer None
+            dummy_args = lambda: None
+            dummy_args.path = None
+            matches = CLIApp(dummy_args).find_project_by_name(current)
+            
             if matches:
                 if len(matches) == 1:
                     self.ia_target_var.set(matches[0])
                     self.log(f"✅ Dossier trouvé via recherche : {matches[0]}", "success")
                     return
                 else:
-                    # Plusieurs matchs, on ouvre quand même pour aider
-                    pass
+                    self.log(f"❓ {len(matches)} dossiers trouvés pour '{current}'. Choisissez-en un.", "warning")
+            else:
+                self.log(f"❌ Aucun dossier trouvé pour '{current}'.", "error")
 
         # Fallback sur le sélecteur classique (en dernier recours)
         folder = filedialog.askdirectory(initialdir=current if os.path.isdir(current) else os.getcwd())
@@ -1700,21 +1708,39 @@ class CLIApp:
             except: pass
 
     def find_project_by_name(self, name):
-        """Recherche intelligente d'un dossier par nom"""
+        """Recherche intelligente d'un dossier par nom dans les dossiers courants"""
         home = os.path.expanduser("~")
-        print(f"🔍 Recherche de '{name}' dans {home}...")
+        
+        # Liste restreinte de dossiers à scanner au lieu de tout OS.WALK(HOME)
+        search_roots = []
+        for d in ["Documents", "Desktop", "Bureau", "Projects", "Code", "Dev", "Stage"]:
+            p = os.path.join(home, d)
+            if os.path.exists(p): search_roots.append(p)
+            
+        if not search_roots: search_roots = [home] # Fallback if all missing
+        
         matches = []
-        ignore = {'.git', 'node_modules', '__pycache__', '.vscode', '.cache', '.local', '.idea', 'venv', 'env'}
+        ignore = {'.git', 'node_modules', '__pycache__', '.vscode', '.cache', '.local', '.idea', 'venv', 'env', 'backups_blx'}
         
         try:
-            for root, dirs, files in os.walk(home):
-                # Filtrer directories pour aller vite
-                dirs[:] = [d for d in dirs if d not in ignore and not d.startswith('.')]
-                if name in dirs:
-                    matches.append(os.path.join(root, name))
-                if len(matches) >= 5: break
-        except KeyboardInterrupt:
-            print("\n⚠️ Recherche interrompue.")
+            for root_dir in search_roots:
+                if matches: break # Si on a déjà trouvé quelque chose on arrête
+                for root, dirs, files in os.walk(root_dir):
+                    # Filtrer directories pour aller vite (Limite profondeur 4)
+                    rel = os.path.relpath(root, root_dir)
+                    if rel.count(os.sep) > 3: 
+                        dirs[:] = []
+                        continue
+                        
+                    dirs[:] = [d for d in dirs if d not in ignore and not d.startswith('.')]
+                    if name.lower() in [d.lower() for d in dirs]:
+                        # Trouver l'original matchant le nom
+                        for d in dirs:
+                            if d.lower() == name.lower():
+                                matches.append(os.path.join(root, d))
+                        
+                    if len(matches) >= 5: break
+        except KeyboardInterrupt: pass
         return matches
 
     def resolve_path(self, path_input):
