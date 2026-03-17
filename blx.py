@@ -1452,14 +1452,23 @@ StartupNotify=true
         tk.Label(patcher_frame, text="Collez ici la réponse de l'IA (nom du fichier + bloc de code).", 
                 bg=self.colors['bg_secondary'], fg=self.colors['text_secondary']).pack(anchor=tk.W)
 
-        # Sélection du dossier cible
+        # Sélection du dossier cible (Plus grand et aéré)
         target_frame = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
-        target_frame.pack(fill=tk.X, pady=5)
+        target_frame.pack(fill=tk.X, pady=15)
         
-        tk.Label(target_frame, text="📁 Dossier cible :", bg=self.colors['bg_secondary']).pack(side=tk.LEFT)
+        tk.Label(target_frame, text="📁 Dossier cible :", 
+                 bg=self.colors['bg_secondary'], font=self.fonts['title']).pack(side=tk.LEFT)
+        
         self.ia_target_var = tk.StringVar(value=os.getcwd())
-        tk.Entry(target_frame, textvariable=self.ia_target_var, font=self.fonts['normal']).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
-        tk.Button(target_frame, text="Parcourir...", command=self.browse_ia_target).pack(side=tk.LEFT)
+        ia_entry = tk.Entry(target_frame, textvariable=self.ia_target_var, 
+                           font=('Segoe UI', 11) if self.os_type == "Windows" else ('Ubuntu', 11),
+                           relief=tk.FLAT, highlightthickness=1, highlightbackground=self.colors['bg_tertiary'])
+        ia_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=15, ipady=4)
+        
+        tk.Button(target_frame, text="🔍 Parcourir...", 
+                  command=self.browse_ia_target,
+                  bg=self.colors['accent'], fg='white', 
+                  font=self.fonts['normal'], padx=15, pady=2).pack(side=tk.LEFT)
         
         self.ia_code_input = tk.Text(patcher_frame, height=12, font=('Courier New', 10))
         self.ia_code_input.pack(fill=tk.BOTH, expand=True, pady=10)
