@@ -1845,7 +1845,18 @@ def main():
         else:
             # Mode Interactif
             if sys.stdout.isatty():
-                print(f"\n{'='*40}")
+                # Bannière ASCII BELLOX en Bleu
+                BLUE = "\033[94m"
+                RESET = "\033[0m"
+                banner = f"""{BLUE}
+  ____  _____ _     _     ___ __  __ 
+ | __ )| ____| |   | |   / _ \\\\ \\/ / 
+ |  _ \\|  _| | |   | |  | | | |\\  /  
+ | |_) | |___| |___| |__| |_| |/  \\  
+ |____/|_____|_____|_____\\___//_/\\_\\ 
+                                     {RESET}"""
+                print(banner)
+                print(f"{'='*40}")
                 print(f"{'PROJECT EXPLORER PRO':^40}")
                 print(f"{'='*40}")
                 print("1. 🖥️  Interface Graphique (GUI)")
