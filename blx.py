@@ -1062,14 +1062,12 @@ StartupNotify=true
             overrides = list(self.override_listbox.get(0, tk.END))
             self.gitignore_overrides[folder] = overrides
             self.save_config()
-            self.log(f"✅ {len(overrides)} exceptions .gitignore sauvegardées", "success")
-            messagebox.showinfo("Succès", f"{len(overrides)} exceptions sauvegardées")
-    
     def browse_folder(self):
         """Sélectionne un dossier"""
         folder = filedialog.askdirectory(title="Sélectionner le dossier du projet")
         if folder:
             self.path_var.set(folder)
+            self.ia_target_var.set(folder) # Synchro avec l'onglet IA
             self.project_name_var.set(os.path.basename(folder))
             
             recent = self.config.get('recent_projects', [])
@@ -1454,21 +1452,34 @@ StartupNotify=true
 
         # Sélection du dossier cible (Plus grand et aéré)
         target_frame = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
-        target_frame.pack(fill=tk.X, pady=15)
+        target_frame.pack(fill=tk.X, pady=(15, 5))
         
-        tk.Label(target_frame, text="📁 Dossier cible :", 
+        tk.Label(target_frame, text="📁 Projet Cible :", 
                  bg=self.colors['bg_secondary'], font=self.fonts['title']).pack(side=tk.LEFT)
         
-        self.ia_target_var = tk.StringVar(value=os.getcwd())
+        self.ia_target_var = tk.StringVar(value=self.path_var.get() or os.getcwd())
         ia_entry = tk.Entry(target_frame, textvariable=self.ia_target_var, 
-                           font=('Segoe UI', 11) if self.os_type == "Windows" else ('Ubuntu', 11),
+                           font=('Segoe UI', 12) if self.os_type == "Windows" else ('Ubuntu', 12),
                            relief=tk.FLAT, highlightthickness=1, highlightbackground=self.colors['bg_tertiary'])
-        ia_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=15, ipady=4)
+        ia_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=15, ipady=6)
         
-        tk.Button(target_frame, text="🔍 Parcourir...", 
+        # Bouton intelligent (Recherche + Parcourir)
+        tk.Button(target_frame, text="🔍 Trouver / Parcourir", 
                   command=self.browse_ia_target,
                   bg=self.colors['accent'], fg='white', 
                   font=self.fonts['normal'], padx=15, pady=2).pack(side=tk.LEFT)
+
+        # Liste de sélection rapide (Projets récents)
+        quick_pick_frame = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
+        quick_pick_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        tk.Label(quick_pick_frame, text="⚡ Sélection rapide :", 
+                 bg=self.colors['bg_secondary'], fg=self.colors['text_secondary'], font=('', 9)).pack(side=tk.LEFT)
+        
+        self.ia_recent_combo = ttk.Combobox(quick_pick_frame, state="readonly", width=50)
+        self.ia_recent_combo.pack(side=tk.LEFT, padx=10)
+        self.ia_recent_combo.bind("<<ComboboxSelected>>", self.on_ia_recent_selected)
+        self.update_ia_recent_combo()
         
         self.ia_code_input = tk.Text(patcher_frame, height=12, font=('Courier New', 10))
         self.ia_code_input.pack(fill=tk.BOTH, expand=True, pady=10)
@@ -1477,9 +1488,38 @@ StartupNotify=true
                   command=self.apply_ia_patch,
                   bg=self.colors['success'], fg='white', font=self.fonts['title'], padx=25, pady=8).pack()
 
+    def update_ia_recent_combo(self):
+        """Met à jour la liste des projets récents dans l'onglet IA"""
+        if hasattr(self, 'ia_recent_combo'):
+            projects = list(self.projects.keys())
+            self.ia_recent_combo['values'] = projects
+            if projects: self.ia_recent_combo.set("Choisir un projet récent...")
+
+    def on_ia_recent_selected(self, event):
+        """Quand on choisit un projet dans la liste rapide"""
+        name = self.ia_recent_combo.get()
+        if name in self.projects:
+            path = self.projects[name].get('path')
+            if path: self.ia_target_var.set(path)
+
     def browse_ia_target(self):
-        """Sélectionne le dossier pour l'IA Assistant"""
-        folder = filedialog.askdirectory(initialdir=self.ia_target_var.get())
+        """Sélectionne le dossier pour l'IA Assistant (ou recherche si nom tape)"""
+        current = self.ia_target_var.get().strip()
+        
+        # Si c'est juste un nom de projet (pas un chemin), on cherche !
+        if current and not os.path.isabs(current) and not current.startswith('.') and not '/' in current:
+            matches = CLIApp(None).find_project_by_name(current)
+            if matches:
+                if len(matches) == 1:
+                    self.ia_target_var.set(matches[0])
+                    self.log(f"✅ Dossier trouvé via recherche : {matches[0]}", "success")
+                    return
+                else:
+                    # Plusieurs matchs, on ouvre quand même pour aider
+                    pass
+
+        # Fallback sur le sélecteur classique (en dernier recours)
+        folder = filedialog.askdirectory(initialdir=current if os.path.isdir(current) else os.getcwd())
         if folder:
             self.ia_target_var.set(folder)
 
