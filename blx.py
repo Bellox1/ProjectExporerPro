@@ -1691,13 +1691,21 @@ class CLIApp:
         """Mode terminal interactif (Option 2)"""
         print("\n--- CONFIGURATION DE L'EXPORT (TERMINAL) ---")
         
-        default_path = os.getcwd()
-        path_input = input(f"📁 Chemin ou nom du projet [{default_path}]: ").strip() or default_path
-        
-        folder = self.resolve_path(path_input)
-        if not folder:
-            print(f"❌ Erreur: Impossible de localiser '{path_input}'.")
-            return
+        folder = None
+        while True:
+            print(f"\n📍 Répertoire courant : {os.getcwd()}")
+            path_input = input("📁 Chemin ou nom du projet (Entrée pour '.', 'q' pour annuler) : ").strip()
+            
+            if path_input.lower() in ('q', 'quit', 'annuler'):
+                return
+            
+            if not path_input:
+                path_input = "."
+                
+            folder = self.resolve_path(path_input)
+            if folder:
+                break
+            print(f"❌ Erreur: Impossible de localiser '{path_input}'. Veuillez réessayer.")
             
         self.args.path = folder
         folder = os.path.abspath(folder)
