@@ -1,7 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
 import sys
+import platform
+import subprocess
+import zipfile
+import json
+import threading
+import queue
+import fnmatch
+import shutil
+import re
+from datetime import datetime
 
 def show_banner():
     """Affiche la bannière ASCII BELLOX en Bleu"""
@@ -57,8 +68,6 @@ def check_and_install_dependencies(mode="full"):
 
 class ProfessionalApp:
     def __init__(self):
-        import os, platform, threading, queue, json
-        from datetime import datetime
         # Imports retardés pour ne pas bloquer le CLI
         try:
             global tk, ttk, filedialog, messagebox, Image, ImageTk, humanize, psutil
@@ -216,7 +225,6 @@ static char * folder_xpm[] = {
     
     def setup_global_command(self):
         """Configure la commande globale 'blx p'"""
-        import os
         try:
             home = os.path.expanduser("~")
             bin_dir = os.path.join(home, ".local", "bin")
@@ -285,8 +293,7 @@ shift
             return False
 
     def add_to_shell_path(self, path_to_add):
-        """Ajoute un dossier au PATH dans le fichier de configuration du shell ou registre Windows"""
-        import os
+        """Ajoute un dossier au PATH"""
         if self.os_type == "Windows":
             try:
                 # Sur Windows, on utilise setx pour ajouter au PATH utilisateur
@@ -334,7 +341,7 @@ shift
 
     def create_desktop_shortcut(self):
         """Crée un raccourci fonctionnel sur le bureau"""
-        import os, shutil, subprocess
+        import shutil, subprocess
         try:
             desktop = self.desktop_path
             if not os.path.exists(desktop):
@@ -1527,8 +1534,6 @@ Créé pour répondre à tous vos besoins !"""
 
 class CLIApp:
     def __init__(self, args):
-        import os, platform
-        from datetime import datetime
         self.args = args
         self.os_type = platform.system()
         self.app_folder = os.path.join(os.path.expanduser("~"), "ProjectExplorer")
@@ -1541,7 +1546,6 @@ class CLIApp:
         self.load_config()
         
     def load_config(self):
-        import os, json
         self.config = {
             'text_extensions': ['.txt', '.py', '.js', '.html', '.css', '.json', '.xml', '.md', '.sql', '.go', '.rs', '.c', '.cpp', '.h', '.php'],
             'exclude_patterns': ['__pycache__', '.git', '.vscode', 'node_modules', '*.pyc', '.DS_Store', 'venv', 'env', '.env'],
@@ -1559,7 +1563,6 @@ class CLIApp:
 
     def list_history(self):
         """Affiche l'historique des projets exportés"""
-        import os, json
         projects_db = os.path.join(self.app_folder, "projects.json")
         if not os.path.exists(projects_db):
             print("� Aucun projet exporté pour le moment.")
@@ -1597,7 +1600,6 @@ class CLIApp:
 
     def run_unpacker(self, file_path=None, dest_folder=None):
         """Désassembleur en mode CLI"""
-        import os, re
         if not file_path:
             file_path = input("📂 Chemin du fichier .txt à désassembler : ").strip()
         
@@ -1635,7 +1637,6 @@ class CLIApp:
 
     def run_interactive(self):
         """Mode terminal interactif (Option 2)"""
-        import os
         print("\n--- CONFIGURATION DE L'EXPORT (TERMINAL) ---")
         
         default_path = os.getcwd()
@@ -1697,9 +1698,6 @@ class CLIApp:
         self.run()
 
     def run(self):
-        import os, fnmatch, subprocess, json
-        from datetime import datetime
-        
         # Vérification automatique des dépendances CLI
         check_and_install_dependencies(mode="core")
         # Commande spéciale 'ls'
@@ -1845,8 +1843,6 @@ class CLIApp:
 
 def run_setup_wizard():
     """Assistant de configuration initiale (blx new)"""
-    import os, platform
-    # On n'affiche plus Project Explorer Pro ici car show_banner le fait déjà
     print(f"\n{'CONFIGURATION DE PROJECT EXPLORER PRO':^50}")
     print(f"{'='*50}\n")
     
@@ -1925,7 +1921,6 @@ def run_setup_wizard():
 
 def run_uninstall():
     """Désinstalle proprement l'application du système"""
-    import os, shutil
     print(f"\n{'!'*50}")
     print(f"{'DÉSINSTALLATION DE PROJECT EXPLORER PRO':^50}")
     print(f"{'!'*50}\n")
@@ -1992,7 +1987,6 @@ def run_uninstall():
 
 def main():
     """Point d'entrée principal avec gestion CLI/GUI"""
-    import os, platform, datetime
     show_banner()
     import argparse
     parser = argparse.ArgumentParser(description="blx p - Project Explorer Pro CLI")
