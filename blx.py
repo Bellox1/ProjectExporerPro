@@ -1653,7 +1653,9 @@ class CLIApp:
     def run_unpacker(self, file_path=None, dest_folder=None):
         """Désassembleur en mode CLI"""
         if not file_path:
-            file_path = input("📂 Chemin du fichier .txt à désassembler : ").strip()
+            file_path = input("📂 Chemin du fichier .txt à désassembler ('q' pour annuler) : ").strip()
+            if file_path.lower() in ('q', 'quit', 'annuler', 's'):
+                return
         
         if not os.path.exists(file_path):
             print(f"❌ Erreur: Le fichier '{file_path}' n'existe pas.")
