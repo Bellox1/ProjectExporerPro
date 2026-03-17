@@ -1912,10 +1912,34 @@ def run_setup_wizard():
             m.setup_global_command()
             
         print("\n✅ Configuration terminée avec succès !")
-        print("🚀 Commandes disponibles :")
+        print("\n🚀 Commandes disponibles :")
         print("   - blx p        : Lancer un export")
         print("   - blx p ls     : Voir l'historique")
         print("   - blx p --gui  : Lancer l'interface graphique")
+        print("   - blx unpack   : Désassembler un projet")
+        print("   - blx new      : Reconfigurer")
+
+        # Action post-setup selon le choix
+        print()
+        if choice == "1":
+            launch = input("▶️  Voulez-vous lancer un export maintenant ? (o/N): ").strip().lower()
+            if launch == 'o':
+                import argparse
+                args = argparse.Namespace(
+                    path=None, command=None, name=None, exclude=None, include=None,
+                    max_size=None, unlimited=False, cl=True, yes=False,
+                    gui=False, setup=False, uninstall=False, unpack=False, no_merge=False
+                )
+                app = CLIApp(args)
+                app.run_interactive()
+        elif choice == "2":
+            launch = input("▶️  Voulez-vous lancer l'interface graphique maintenant ? (O/n): ").strip().lower()
+            if launch != 'n':
+                check_and_install_dependencies(mode="full")
+                app = ProfessionalApp()
+                app.run()
+        else:
+            print("✅ Configuration système terminée. Vous pouvez maintenant utiliser 'blx' depuis n'importe où.")
     except Exception as e:
         print(f"❌ Erreur durant le setup: {e}")
 
