@@ -1997,45 +1997,48 @@ def run_setup_wizard():
         print("   - blx unpack   : Désassembler un projet")
         print("   - blx new      : Reconfigurer")
 
-        # Menu post-setup persistant : on tourne en boucle jusqu'au Quitter
-        while True:
-            print("\n" + "="*50)
-            print("Que souhaitez-vous faire maintenant ?")
-            print("  1. 🚀 Lancer un export (blx p)")
-            print("  2. 📋 Voir l'historique (blx p ls)")
-            if choice == "2":
-                print("  3. 🖥️  Lancer l'interface graphique (blx p --gui)")
-            print("  s. Quitter l'application (--stop)")
+        if choice != "3":
+            # Menu post-setup persistant : on tourne en boucle jusqu'au Quitter
+            while True:
+                print("\n" + "="*50)
+                print("Que souhaitez-vous faire maintenant ?")
+                print("  1. 🚀 Lancer un export (blx p)")
+                print("  2. 📋 Voir l'historique (blx p ls)")
+                if choice == "2":
+                    print("  3. 🖥️  Lancer l'interface graphique (blx p --gui)")
+                print("  s. Quitter l'application (--stop)")
 
-            next_action = input("\nVotre choix [s]: ").strip().lower() or "s"
+                next_action = input("\nVotre choix [s]: ").strip().lower() or "s"
 
-            if next_action in ("1", "blx p", "p", "export"):
-                import argparse
-                args = argparse.Namespace(
-                    path=None, command=None, name=None, exclude=None, include=None,
-                    max_size=None, unlimited=False, cl=True, yes=False,
-                    gui=False, setup=False, uninstall=False, unpack=False, no_merge=False
-                )
-                app = CLIApp(args)
-                app.run_interactive()
-            elif next_action in ("2", "blx p ls", "ls", "historique"):
-                import argparse
-                fake_args = argparse.Namespace(
-                    path='ls', command=None, name=None, exclude=None, include=None,
-                    max_size=None, unlimited=False, cl=True, yes=False,
-                    gui=False, setup=False, uninstall=False, unpack=False, no_merge=False
-                )
-                app = CLIApp(fake_args)
-                app.list_history()
-            elif next_action in ("3", "blx p --gui", "gui") and choice == "2":
-                check_and_install_dependencies(mode="full")
-                app = ProfessionalApp()
-                app.run()
-            elif next_action in ("s", "stop", "q", "quit", "0", "blx p --stop", "blx stop", "blx p -s"):
-                print("👋 À bientôt !")
-                break
-            else:
-                print("⚠️ Choix invalide.")
+                if next_action in ("1", "blx p", "p", "export"):
+                    import argparse
+                    args = argparse.Namespace(
+                        path=None, command=None, name=None, exclude=None, include=None,
+                        max_size=None, unlimited=False, cl=True, yes=False,
+                        gui=False, setup=False, uninstall=False, unpack=False, no_merge=False
+                    )
+                    app = CLIApp(args)
+                    app.run_interactive()
+                elif next_action in ("2", "blx p ls", "ls", "historique"):
+                    import argparse
+                    fake_args = argparse.Namespace(
+                        path='ls', command=None, name=None, exclude=None, include=None,
+                        max_size=None, unlimited=False, cl=True, yes=False,
+                        gui=False, setup=False, uninstall=False, unpack=False, no_merge=False
+                    )
+                    app = CLIApp(fake_args)
+                    app.list_history()
+                elif next_action in ("3", "blx p --gui", "gui") and choice == "2":
+                    check_and_install_dependencies(mode="full")
+                    app = ProfessionalApp()
+                    app.run()
+                elif next_action in ("s", "stop", "q", "quit", "0", "blx p --stop", "blx stop", "blx p -s"):
+                    print("👋 À bientôt !")
+                    break
+                else:
+                    print("⚠️ Choix invalide.")
+        else:
+            print("\n✅ Configuration système terminée. Vous pouvez maintenant utiliser 'blx' n'importe où.")
     except Exception as e:
         print(f"❌ Erreur durant le setup: {e}")
 
