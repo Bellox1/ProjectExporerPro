@@ -1535,6 +1535,7 @@ class CLIApp:
         self.load_config()
         
     def load_config(self):
+        import os, json
         self.config = {
             'text_extensions': ['.txt', '.py', '.js', '.html', '.css', '.json', '.xml', '.md', '.sql', '.go', '.rs', '.c', '.cpp', '.h', '.php'],
             'exclude_patterns': ['__pycache__', '.git', '.vscode', 'node_modules', '*.pyc', '.DS_Store', 'venv', 'env', '.env'],
@@ -1552,6 +1553,7 @@ class CLIApp:
 
     def list_history(self):
         """Affiche l'historique des projets exportés"""
+        import os, json
         projects_db = os.path.join(self.app_folder, "projects.json")
         if not os.path.exists(projects_db):
             print("📭 Aucun projet exporté pour le moment.")
@@ -1620,6 +1622,7 @@ class CLIApp:
 
     def run_interactive(self):
         """Mode terminal interactif (Option 2)"""
+        import os
         print("\n--- CONFIGURATION DE L'EXPORT (TERMINAL) ---")
         
         default_path = os.getcwd()
@@ -1681,6 +1684,7 @@ class CLIApp:
         self.run()
 
     def run(self):
+        import os, fnmatch, datetime, subprocess
         # Commande spéciale 'ls'
         if self.args.path == 'ls' or getattr(self.args, 'command', None) == 'ls':
             self.list_history()
