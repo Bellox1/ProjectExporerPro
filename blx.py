@@ -1,12 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Fichier blx.py - Project Explorer Pro
-# Toutes les importations sont faites de manière différée pour une portabilité maximale
+import sys
+
+def show_banner():
+    """Affiche la bannière ASCII BELLOX en Bleu"""
+    import sys
+    if not sys.stdout.isatty():
+        return
+    BLUE = "\033[94m"
+    RESET = "\033[0m"
+    # Utilisation d'une chaîne brute (raw string) pour éviter les problèmes d'échappement
+    banner = rf"""{BLUE}
+  ____  _____ _     _     ___ __  __ 
+ | __ )| ____| |   | |   / _ \ \/ / 
+ |  _ \|  _| | |   | |  | | | |\  /  
+ | |_) | |___| |___| |__| |_| |/  \  
+ |____/|_____|_____|_____\___//_/\_\ 
+                                     {RESET}"""
+    print(banner)
+    print("="*40)
+    print(f"{'PROJECT EXPLORER PRO':^40}")
+    print("="*40)
 
 def check_and_install_dependencies(mode="full"):
     """Vérifie et installe les dépendances selon le mode choisi (core/full)"""
-    import os, sys, subprocess
+    import os, subprocess
     if mode == "none": return
     # ... rest of the logic ...
     core_deps = [("psutil", "psutil"), ("humanize", "humanize")]
@@ -38,7 +57,7 @@ def check_and_install_dependencies(mode="full"):
 
 class ProfessionalApp:
     def __init__(self):
-        import os, sys, platform, threading, queue, json
+        import os, platform, threading, queue, json, datetime
         # Imports retardés pour ne pas bloquer le CLI
         try:
             global tk, ttk, filedialog, messagebox, Image, ImageTk, humanize, psutil
@@ -196,6 +215,7 @@ static char * folder_xpm[] = {
     
     def setup_global_command(self):
         """Configure la commande globale 'blx p'"""
+        import os
         try:
             home = os.path.expanduser("~")
             bin_dir = os.path.join(home, ".local", "bin")
@@ -213,6 +233,8 @@ fi
 
 if [ "$1" == "p" ] || [ "$1" == "projet" ]; then
     "{sys.executable}" "{self.main_script}" "${{@:2}}"
+elif [ "$1" == "unpack" ]; then
+    "{sys.executable}" "{self.main_script}" unpack "${{@:2}}"
 elif [ "$1" == "new" ]; then
     "{sys.executable}" "{self.main_script}" --setup
 elif [ "$1" == "uninstall" ]; then
@@ -221,6 +243,7 @@ else
     echo "=== PROJECT EXPLORER PRO ==="
     echo "Usage: blx p [options]  (Mode Export)"
     echo "       blx p ls         (Historique)"
+    echo "       blx unpack       (Désassembler un projet)"
     echo "       blx new          (Configuration/Installation)"
     echo "       blx uninstall    (Supprimer l'application)"
     echo "       blx --help       (Aide détaillée)"
@@ -262,6 +285,7 @@ shift
 
     def add_to_shell_path(self, path_to_add):
         """Ajoute un dossier au PATH dans le fichier de configuration du shell ou registre Windows"""
+        import os
         if self.os_type == "Windows":
             try:
                 # Sur Windows, on utilise setx pour ajouter au PATH utilisateur
@@ -309,6 +333,7 @@ shift
 
     def create_desktop_shortcut(self):
         """Crée un raccourci fonctionnel sur le bureau"""
+        import os, shutil, subprocess
         try:
             desktop = self.desktop_path
             if not os.path.exists(desktop):
@@ -565,8 +590,8 @@ StartupNotify=true
                 font=self.fonts['heading'],
                 bg=self.colors['bg_dark'], fg='white').pack(side=tk.LEFT)
         
-        tk.Label(header, text="v2.0", font=self.fonts['small'],
-                bg=self.colors['bg_dark'], fg='#cccccc').pack(side=tk.RIGHT, padx=20)
+        tk.Label(header, text="v3.0 - EVOLVED", font=self.fonts['small'],
+                bg=self.colors['bg_dark'], fg='#4d94ff').pack(side=tk.RIGHT, padx=20)
         
         main_panel = tk.Frame(self.root, bg=self.colors['bg_primary'])
         main_panel.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -576,6 +601,7 @@ StartupNotify=true
         
         # Création des onglets
         self.setup_main_tab()
+        self.setup_ia_tab()
         self.setup_gitignore_tab()
         self.setup_projects_tab()
         self.setup_config_tab()
@@ -1361,6 +1387,102 @@ StartupNotify=true
         finally:
             self.root.after(100, self.process_log_queue)
     
+    def setup_ia_tab(self):
+        """Onglet Assistant IA (v3.0)"""
+        tab = ttk.Frame(self.notebook)
+        self.notebook.add(tab, text="🤖 Assistant IA")
+        
+        main_frame = tk.Frame(tab, bg=self.colors['bg_primary'])
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Section 1: Désassembleur (Unpacker)
+        unpacker_frame = tk.LabelFrame(main_frame, text="📦 Désassembleur (Unpacker)", 
+                                     bg=self.colors['bg_secondary'], font=self.fonts['title'], 
+                                     padx=15, pady=15)
+        unpacker_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        tk.Label(unpacker_frame, text="Reconstruisez un projet à partir d'un fichier .txt exporté.", 
+                bg=self.colors['bg_secondary'], fg=self.colors['text_secondary']).pack(anchor=tk.W)
+        
+        up_btn_frame = tk.Frame(unpacker_frame, bg=self.colors['bg_secondary'])
+        up_btn_frame.pack(fill=tk.X, pady=10)
+        
+        tk.Button(up_btn_frame, text="📂 Sélectionner un Export .txt", 
+                  command=self.run_unpacker,
+                  bg=self.colors['accent'], fg='white', padx=15).pack(side=tk.LEFT)
+        
+        # Section 2: IA Patcher (Beta)
+        patcher_frame = tk.LabelFrame(main_frame, text="🛠️ IA Patcher (Appliquer du code)", 
+                                    bg=self.colors['bg_secondary'], font=self.fonts['title'], 
+                                    padx=15, pady=15)
+        patcher_frame.pack(fill=tk.BOTH, expand=True)
+        
+        tk.Label(patcher_frame, text="Collez ici le code suggéré par l'IA pour l'intégrer au projet actuel.", 
+                bg=self.colors['bg_secondary'], fg=self.colors['text_secondary']).pack(anchor=tk.W)
+        
+        self.ia_code_input = tk.Text(patcher_frame, height=10, font=('Courier New', 10))
+        self.ia_code_input.pack(fill=tk.BOTH, expand=True, pady=10)
+        
+        tk.Button(patcher_frame, text="⚡ Appliquer les correctifs au projet", 
+                  command=self.apply_ia_patch,
+                  bg=self.colors['success'], fg='white', font=self.fonts['title'], padx=20, pady=5).pack()
+
+    def run_unpacker(self):
+        """Logique du désassembleur"""
+        import os, re
+        file_path = filedialog.askopenfilename(filetypes=[("Fichiers Texte", "*.txt")])
+        if not file_path: return
+        
+        dest_folder = filedialog.askdirectory(title="Choisir le dossier de destination pour la reconstruction")
+        if not dest_folder: return
+        
+        try:
+            self.log(f"🏗️ Reconstruction démarrée dans: {dest_folder}", "info")
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            
+            # Pattern pour trouver les fichiers [chemin/du/fichier.ext]
+            # On cherche le début d'un fichier marqué par [chemin]
+            parts = re.split(r'\n\[(.*?)\]\n', content)
+            
+            # La première partie est l'entête du dossier
+            header = parts[0]
+            files_data = parts[1:]
+            
+            file_count = 0
+            for i in range(0, len(files_data), 2):
+                rel_path = files_data[i]
+                file_content = files_data[i+1] if i+1 < len(files_data) else ""
+                
+                # Nettoyer les sauts de ligne de début/fin ajoutés par le split
+                if file_content.startswith('\n'): file_content = file_content[1:]
+                
+                full_dest = os.path.join(dest_folder, rel_path)
+                os.makedirs(os.path.dirname(full_dest), exist_ok=True)
+                
+                with open(full_dest, 'w', encoding='utf-8') as df:
+                    df.write(file_content.strip())
+                file_count += 1
+            
+            messagebox.showinfo("Succès", f"🏗️ Projet reconstruit avec succès !\n{file_count} fichiers créés dans {dest_folder}")
+            self.log(f"✅ Reconstruction terminée: {file_count} fichiers.", "success")
+            self.open_folder(dest_folder)
+            
+        except Exception as e:
+            messagebox.showerror("Erreur Unpacker", str(e))
+            self.log(f"❌ Erreur Unpacker: {e}", "error")
+
+    def apply_ia_patch(self):
+        """Tente d'appliquer le code collé au projet actuel (Concept v3.0)"""
+        code = self.ia_code_input.get("1.0", tk.END).strip()
+        if not code:
+            messagebox.showwarning("IA Patcher", "Veuillez d'abord coller du code.")
+            return
+            
+        messagebox.showinfo("IA Patcher (Beta)", 
+                          "Analyse du code IA... \n\nCette fonctionnalité va comparer votre code avec la suggestion IA. \n(Bientôt disponible en version automatique complète)")
+        self.log("💡 IA Patcher: Analyse de la suggestion terminée.", "info")
+
     def log(self, message, level='info'):
         """Ajoute un message au journal"""
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -1458,6 +1580,44 @@ class CLIApp:
         except Exception as e:
             print(f"❌ Erreur lors de la lecture de l'historique: {e}")
 
+    def run_unpacker(self, file_path=None, dest_folder=None):
+        """Désassembleur en mode CLI"""
+        import os, re
+        if not file_path:
+            file_path = input("📂 Chemin du fichier .txt à désassembler : ").strip()
+        
+        if not os.path.exists(file_path):
+            print(f"❌ Erreur: Le fichier '{file_path}' n'existe pas.")
+            return
+
+        if not dest_folder:
+            default_dest = os.path.join(os.getcwd(), "reconstructed_project")
+            dest_folder = input(f"🏗️ Dossier de destination [{default_dest}] : ").strip() or default_dest
+            
+        try:
+            print(f"🚀 Reconstruction dans: {dest_folder}")
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            
+            parts = re.split(r'\n\[(.*?)\]\n', content)
+            files_data = parts[1:]
+            
+            file_count = 0
+            for i in range(0, len(files_data), 2):
+                rel_path = files_data[i]
+                file_content = files_data[i+1] if i+1 < len(files_data) else ""
+                
+                full_dest = os.path.join(dest_folder, rel_path)
+                os.makedirs(os.path.dirname(full_dest), exist_ok=True)
+                
+                with open(full_dest, 'w', encoding='utf-8') as df:
+                    df.write(file_content.strip())
+                file_count += 1
+                
+            print(f"✅ Succès ! {file_count} fichiers créés dans {dest_folder}")
+        except Exception as e:
+            print(f"❌ Erreur: {e}")
+
     def run_interactive(self):
         """Mode terminal interactif (Option 2)"""
         print("\n--- CONFIGURATION DE L'EXPORT (TERMINAL) ---")
@@ -1524,6 +1684,15 @@ class CLIApp:
         # Commande spéciale 'ls'
         if self.args.path == 'ls' or getattr(self.args, 'command', None) == 'ls':
             self.list_history()
+            return
+            
+        # Commande spéciale 'unpack' (v3.0)
+        if self.args.path == 'unpack' or (hasattr(self.args, 'unpack') and self.args.unpack):
+            # On récupère les arguments de la commande
+            target_file = self.args.command if self.args.command else None
+            # Le reste des arguments est complexe via argparse ici, 
+            # on va simplifier si on est en CLI direct
+            self.run_unpacker(target_file)
             return
 
         if not self.args.path:
@@ -1655,8 +1824,9 @@ class CLIApp:
 
 def run_setup_wizard():
     """Assistant de configuration initiale (blx new)"""
-    print(f"\n{'='*50}")
-    print(f"{'CONFIGURATION DE PROJECT EXPLORER PRO':^50}")
+    import os, platform
+    # On n'affiche plus Project Explorer Pro ici car show_banner le fait déjà
+    print(f"\n{'CONFIGURATION DE PROJECT EXPLORER PRO':^50}")
     print(f"{'='*50}\n")
     
     print("Choisissez le type d'installation :")
@@ -1707,6 +1877,7 @@ def run_setup_wizard():
             # On peut quand même tenter le setup de la commande globale
             class MinimalSetup:
                 def __init__(self):
+                    import os, platform
                     self.os_type = platform.system()
                     self.main_script = os.path.abspath(__file__)
                     self.script_dir = os.path.dirname(self.main_script)
@@ -1733,6 +1904,7 @@ def run_setup_wizard():
 
 def run_uninstall():
     """Désinstalle proprement l'application du système"""
+    import os, shutil
     print(f"\n{'!'*50}")
     print(f"{'DÉSINSTALLATION DE PROJECT EXPLORER PRO':^50}")
     print(f"{'!'*50}\n")
@@ -1799,6 +1971,8 @@ def run_uninstall():
 
 def main():
     """Point d'entrée principal avec gestion CLI/GUI"""
+    import os, platform, datetime
+    show_banner()
     import argparse
     parser = argparse.ArgumentParser(description="blx p - Project Explorer Pro CLI")
     
@@ -1817,6 +1991,7 @@ def main():
     parser.add_argument('--gui', action='store_true', help='Forcer le mode graphique')
     parser.add_argument('--setup', action='store_true', help='Lancer l\'assistant de configuration')
     parser.add_argument('--uninstall', action='store_true', help='Désinstaller l\'application')
+    parser.add_argument('--unpack', action='store_true', help='Désassembler un projet (v3.0)')
     
     # Compatibility
     parser.add_argument('--no-merge', action='store_true', help='Désactiver la fusion')
@@ -1845,20 +2020,6 @@ def main():
         else:
             # Mode Interactif
             if sys.stdout.isatty():
-                # Bannière ASCII BELLOX en Bleu
-                BLUE = "\033[94m"
-                RESET = "\033[0m"
-                banner = f"""{BLUE}
-  ____  _____ _     _     ___ __  __ 
- | __ )| ____| |   | |   / _ \\\\ \\/ / 
- |  _ \\|  _| | |   | |  | | | |\\  /  
- | |_) | |___| |___| |__| |_| |/  \\  
- |____/|_____|_____|_____\\___//_/\\_\\ 
-                                     {RESET}"""
-                print(banner)
-                print(f"{'='*40}")
-                print(f"{'PROJECT EXPLORER PRO':^40}")
-                print(f"{'='*40}")
                 print("1. 🖥️  Interface Graphique (GUI)")
                 print("2. ⌨️  Mode Terminal (Interactif)")
                 print("3. 📜 Voir l'historique (ls)")
