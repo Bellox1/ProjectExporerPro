@@ -57,7 +57,8 @@ def check_and_install_dependencies(mode="full"):
 
 class ProfessionalApp:
     def __init__(self):
-        import os, platform, threading, queue, json, datetime
+        import os, platform, threading, queue, json
+        from datetime import datetime
         # Imports retardés pour ne pas bloquer le CLI
         try:
             global tk, ttk, filedialog, messagebox, Image, ImageTk, humanize, psutil
@@ -1523,6 +1524,7 @@ Créé pour répondre à tous vos besoins !"""
 class CLIApp:
     def __init__(self, args):
         import os, platform
+        from datetime import datetime
         self.args = args
         self.os_type = platform.system()
         self.app_folder = os.path.join(os.path.expanduser("~"), "ProjectExplorer")
@@ -1684,7 +1686,11 @@ class CLIApp:
         self.run()
 
     def run(self):
-        import os, fnmatch, datetime, subprocess
+        import os, fnmatch, subprocess
+        from datetime import datetime
+        
+        # Vérification automatique des dépendances CLI
+        check_and_install_dependencies(mode="core")
         # Commande spéciale 'ls'
         if self.args.path == 'ls' or getattr(self.args, 'command', None) == 'ls':
             self.list_history()
@@ -2015,6 +2021,7 @@ def main():
 
         # Si commande 'ls' ou chemin fourni -> Mode CLI
         if args.path or args.command == 'ls':
+            check_and_install_dependencies(mode="core")
             app = CLIApp(args)
             app.run()
         elif args.gui:
