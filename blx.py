@@ -14,6 +14,14 @@ import shutil
 import re
 from datetime import datetime
 
+# Imports graphiques de base (tkinter - pas PIL qui crashe si importé sans fenêtre Tk)
+try:
+    import tkinter as tk
+    from tkinter import ttk, filedialog, messagebox
+except ImportError:
+    tk = None
+    ttk = None
+
 def show_banner():
     """Affiche la bannière ASCII BELLOX en Bleu"""
     import sys
@@ -36,9 +44,7 @@ def show_banner():
 
 def check_and_install_dependencies(mode="full"):
     """Vérifie et installe les dépendances selon le mode choisi (core/full)"""
-    import os, subprocess
     if mode == "none": return
-    # ... rest of the logic ...
     core_deps = [("psutil", "psutil"), ("humanize", "humanize")]
     gui_deps = [("PIL", "Pillow"), ("tktooltip", "tkinter-tooltip")]
     dependencies = core_deps + (gui_deps if mode == "full" else [])
@@ -58,33 +64,321 @@ def check_and_install_dependencies(mode="full"):
         print(f"📦 Installation des dépendances ({mode}): {', '.join(missing)}...")
         try:
             os.environ["INSTALL_ATTEMPTED"] = "true"
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "--user"] + missing)
-            print("✅ Installation terminée. Redémarrage...")
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--user"] + missing,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("✅ Installation terminée.")
         except Exception as e:
             print(f"❌ Erreur installation: {e}")
 
+
+def _silent_setup():
+    """Configure PATH et raccourci bureau silencieusement au premier lancement."""
+    home = os.path.expanduser("~")
+    done_flag = os.path.join(home, "ProjectExplorer", ".first_run_done")
+    if os.path.exists(done_flag):
+        return  # Déjà configuré
+    # Appliquer la configuration sans GUI
+    class _Mini:
+        def __init__(self):
+            self.os_type = platform.system()
+            self.main_script = os.path.abspath(__file__)
+            self.script_dir = os.path.dirname(self.main_script)
+            self.app_folder = os.path.join(home, "ProjectExplorer")
+            os.makedirs(self.app_folder, exist_ok=True)
+            self.desktop_path = self._get_desktop()
+        def _get_desktop(self):
+            try:
+                res = subprocess.run(['xdg-user-dir', 'DESKTOP'], capture_output=True, text=True)
+                if res.returncode == 0 and res.stdout.strip() and res.stdout.strip() != home:
+                    return res.stdout.strip()
+            except: pass
+            for d in ["Bureau", "Desktop"]:
+                p = os.path.join(home, d)
+                if os.path.exists(p):
+                    return p
+            return home
+        def setup_global_command(self):
+            ProfessionalApp.setup_global_command(self)
+        def add_to_shell_path(self, path):
+            ProfessionalApp.add_to_shell_path(self, path)
+    try:
+        m = _Mini()
+        m.setup_global_command()
+        # Marquer comme fait
+        with open(done_flag, 'w') as _f:
+            _f.write(datetime.now().isoformat())
+        print("✅ Configuration initiale du PATH effectuée.")
+        print("💡 Rechargez votre terminal ou tapez: source ~/.bashrc")
+    except Exception as e:
+        print(f"⚠️  Setup silencieux échoué: {e}")
+
 # Les imports seront fait à la demande dans les classes
+
+class ModalNavigator(tk.Toplevel if tk else object):
+    """Un explorateur de fichiers moderne et large pour remplacer les boîtes système trop petites."""
+    def __init__(self, parent, mode="directory", title="Sélectionner", filetypes=None,
+                 colors_override=None, fonts_override=None):
+        if not tk:
+            raise ImportError("Tkinter n'est pas installé sur ce système.")
+        super().__init__(parent)
+        self.title(title)
+        self.geometry("900x600")
+        self.resizable(True, True)
+        # NE PAS appeler transient() ni grab_set() : cause segfault sur Ubuntu/Python3.10
+        
+        self.mode = mode # "directory" ou "file"
+        self.filetypes = filetypes
+        self.result = None
+        self.current_path = os.path.expanduser("~")
+        
+        # Style - utilise les couleurs de l'app ou des valeurs par défaut complètes
+        full_default_colors = {
+            'bg_primary': '#f5f5f5', 'bg_secondary': '#ffffff',
+            'bg_tertiary': '#e0e0e0', 'bg_dark': '#2d2d2d',
+            'accent': '#0066cc', 'accent_light': '#4d94ff',
+            'success': '#28a745', 'error': '#dc3545',
+            'text_primary': '#212529', 'text_secondary': '#6c757d', 'text_light': '#ffffff'
+        }
+        self.colors = colors_override or (parent.colors if hasattr(parent, 'colors') else full_default_colors)
+        full_default_fonts = {
+            'normal': ('DejaVu Sans', 10), 'title': ('DejaVu Sans', 11, 'bold'),
+            'small': ('DejaVu Sans', 9), 'mono': ('Monospace', 10)
+        }
+        self.fonts = fonts_override or (parent.fonts if hasattr(parent, 'fonts') else full_default_fonts)
+        
+        self.configure(bg=self.colors['bg_primary'])
+        try:
+            self.setup_ui()
+            self.refresh_list()
+        except Exception as e:
+            print(f'[Navigator] Erreur UI: {e}')
+            self.destroy()
+            return
+        
+        # Centrer sans grab_set (pour éviter le segfault sur Ubuntu/Python3.10)
+        self.update_idletasks()
+        px = parent.winfo_rootx() + max(0, (parent.winfo_width() - 900) // 2)
+        py = parent.winfo_rooty() + max(0, (parent.winfo_height() - 600) // 2)
+        self.geometry(f"+{px}+{py}")
+        self.lift()
+        self.focus_force()
+
+    def setup_ui(self):
+        # Barre d'adresse
+        path_frame = tk.Frame(self, bg=self.colors['bg_secondary'], padx=10, pady=10)
+        path_frame.pack(fill=tk.X)
+        
+        tk.Button(path_frame, text="⬅️", command=self.go_up, relief=tk.FLAT).pack(side=tk.LEFT, padx=5)
+        self.path_entry = tk.Entry(path_frame, font=self.fonts['normal'])
+        self.path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        self.path_entry.insert(0, self.current_path)
+        self.path_entry.bind("<Return>", lambda e: self.set_path(self.path_entry.get()))
+        
+        tk.Button(path_frame, text="📁+ Nouveau Dossier", command=self.create_dir, 
+                  bg=self.colors['bg_tertiary'], font=('', 8)).pack(side=tk.RIGHT, padx=5)
+        
+        # Corps principal (Favoris + Liste)
+        body = tk.Frame(self, bg=self.colors['bg_primary'])
+        body.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Favoris à gauche
+        fav_frame = tk.Frame(body, bg=self.colors['bg_secondary'], width=150)
+        fav_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+        fav_frame.pack_propagate(False)
+        
+        tk.Label(fav_frame, text="FAVORIS", font=('', 10, 'bold'), bg=self.colors['bg_secondary'], fg='gray').pack(pady=10)
+        
+        favs = [
+            ("🏠 Home", os.path.expanduser("~")),
+            ("🖥️ Bureau", self.get_fav_path("Bureau")),
+            ("📂 Documents", self.get_fav_path("Documents")),
+            ("📁 Downloads", self.get_fav_path("Downloads")),
+            ("⚙️ ProjectExplorer", os.path.join(os.path.expanduser("~"), "ProjectExplorer"))
+        ]
+        
+        for name, path in favs:
+            if os.path.exists(path):
+                btn = tk.Button(fav_frame, text=name, anchor="w", relief=tk.FLAT, bg=self.colors['bg_secondary'],
+                              command=lambda p=path: self.set_path(p))
+                btn.pack(fill=tk.X, padx=5, pady=2)
+                btn.bind("<Enter>", lambda e, b=btn: b.config(bg=self.colors['bg_primary']))
+                btn.bind("<Leave>", lambda e, b=btn: b.config(bg=self.colors['bg_secondary']))
+
+        # Liste des fichiers à droite
+        list_frame = tk.Frame(body, bg=self.colors['bg_secondary'])
+        list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        cols = ("Nom", "Taille", "Modifié")
+        self.tree = ttk.Treeview(list_frame, columns=cols, show='headings', selectmode='browse')
+        for col in cols: 
+            self.tree.heading(col, text=col)
+            self.tree.column(col, width=100)
+        self.tree.column("Nom", width=400)
+        
+        scroll = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scroll.set)
+        
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.tree.bind("<Double-1>", self.on_double_click)
+        self.tree.bind("<<TreeviewSelect>>", self.on_select)
+        
+        # Footer
+        footer = tk.Frame(self, bg=self.colors['bg_primary'], pady=10)
+        footer.pack(fill=tk.X)
+        
+        self.selection_var = tk.StringVar(value="Aucune sélection")
+        tk.Label(footer, textvariable=self.selection_var, bg=self.colors['bg_primary'], fg='gray').pack(side=tk.LEFT, padx=20)
+        
+        tk.Button(footer, text="Annuler", command=self.destroy, width=12).pack(side=tk.RIGHT, padx=10)
+        self.ok_btn = tk.Button(footer, text="SÉLECTIONNER", command=self.confirm, 
+                                 bg=self.colors['accent'], fg='white', width=20, font=self.fonts['title'])
+        self.ok_btn.pack(side=tk.RIGHT, padx=5)
+
+    def get_fav_path(self, name):
+        p = os.path.join(os.path.expanduser("~"), name)
+        if not os.path.exists(p):
+            p = os.path.join(os.path.expanduser("~"), name.title()) # Backup case
+        return p
+
+    def set_path(self, path):
+        if os.path.isdir(path):
+            self.current_path = os.path.abspath(path)
+            self.path_entry.delete(0, tk.END)
+            self.path_entry.insert(0, self.current_path)
+            self.refresh_list()
+            self.selection_var.set(self.current_path if self.mode == "directory" else "Aucune sélection")
+
+    def go_up(self):
+        self.set_path(os.path.dirname(self.current_path))
+
+    def refresh_list(self):
+        for i in self.tree.get_children(): self.tree.delete(i)
+        
+        try:
+            items = os.listdir(self.current_path)
+            # Trier : Dossiers d'abord, puis fichiers
+            dirs = sorted([d for d in items if os.path.isdir(os.path.join(self.current_path, d))], key=lambda s: s.lower())
+            files = sorted([f for f in items if os.path.isfile(os.path.join(self.current_path, f))], key=lambda s: s.lower())
+            
+            for d in dirs:
+                if d.startswith('.') and d != '.gitignore': continue
+                stats = os.stat(os.path.join(self.current_path, d))
+                date = datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M')
+                self.tree.insert('', tk.END, text=os.path.join(self.current_path, d), values=("📁 " + d, "--", date), tags=('dir',))
+            
+            for f in files:
+                if f.startswith('.'): continue
+                # Filtre extension
+                if self.filetypes:
+                    ext = os.path.splitext(f)[1].lower()
+                    allowed = [t[1].replace("*", "").lower() for t in self.filetypes]
+                    if not any(e in ext for e in allowed): continue
+                
+                stats = os.stat(os.path.join(self.current_path, f))
+                size = f"{stats.st_size / 1024:.1f} KB"
+                date = datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M')
+                self.tree.insert('', tk.END, text=os.path.join(self.current_path, f), values=("📄 " + f, size, date), tags=('file',))
+                
+            self.tree.tag_configure('dir', foreground='black', font=('', 10, 'bold')) # Dossiers en noir et gras
+        except Exception as e:
+            print(f"Error listing {self.current_path}: {e}")
+
+    def on_select(self, event):
+        item = self.tree.selection()
+        if item:
+            full_path = self.tree.item(item, 'text')
+            is_dir = os.path.isdir(full_path)
+            
+            if self.mode == "directory" and is_dir:
+                self.selection_var.set(full_path)
+            elif self.mode == "file" and not is_dir:
+                self.selection_var.set(os.path.basename(full_path))
+            else:
+                self.selection_var.set("Sélection invalide")
+
+    def on_double_click(self, event):
+        item = self.tree.selection()
+        if item:
+            full_path = self.tree.item(item, 'text')
+            if os.path.isdir(full_path):
+                self.set_path(full_path)
+            elif self.mode == "file":
+                self.confirm()
+
+    def create_dir(self):
+        from tkinter import simpledialog
+        name = simpledialog.askstring("Nouveau dossier", "Nom du dossier:", parent=self)
+        if name:
+            try:
+                os.makedirs(os.path.join(self.current_path, name), exist_ok=True)
+                self.refresh_list()
+            except Exception as e:
+                messagebox.showerror("Erreur", str(e))
+
+    def confirm(self):
+        item = self.tree.selection()
+        if not item and self.mode == "directory":
+            self.result = self.current_path
+            self.destroy()
+            return
+            
+        if item:
+            full_path = self.tree.item(item, 'text')
+            if self.mode == "directory" and not os.path.isdir(full_path):
+                return
+            if self.mode == "file" and os.path.isdir(full_path):
+                self.set_path(full_path)
+                return
+            self.result = full_path
+            self.destroy()
+
+def ask_modern_directory(parent, title="Choisir un dossier", colors=None, fonts=None):
+    try:
+        nav = ModalNavigator(parent, mode="directory", title=title,
+                            colors_override=colors, fonts_override=fonts)
+        parent.wait_window(nav)
+        return nav.result
+    except Exception as e:
+        print(f'[Navigator] Fallback système: {e}')
+        from tkinter import filedialog
+        return filedialog.askdirectory(title=title)
+
+def ask_modern_file(parent, title="Ouvrir un fichier", filetypes=None, colors=None, fonts=None):
+    try:
+        nav = ModalNavigator(parent, mode="file", title=title, filetypes=filetypes,
+                            colors_override=colors, fonts_override=fonts)
+        parent.wait_window(nav)
+        return nav.result
+    except Exception as e:
+        print(f'[Navigator] Fallback système: {e}')
+        from tkinter import filedialog
+        return filedialog.askopenfilename(title=title, filetypes=filetypes or [])
 
 class ProfessionalApp:
     def __init__(self):
-        # Imports retardés pour ne pas bloquer le CLI
-        try:
-            global tk, ttk, filedialog, messagebox, Image, ImageTk, humanize, psutil
-            import tkinter as tk
-            from tkinter import ttk, filedialog, messagebox
-            from PIL import Image, ImageTk
-            import humanize
-            import psutil
-        except ImportError:
-            print("❌ Erreur: Bibliothèques graphiques manquantes.")
+        # Vérification des bibliothèques graphiques
+        if not tk:
+            print("❌ Erreur: Tkinter est manquant.")
             print("Lancez 'blx new' pour installer les dépendances nécessaires.")
             sys.exit(1)
 
-        # Création de la fenêtre principale
+        # Création de la fenêtre principale (AVANT d'importer PIL/ImageTk)
         self.root = tk.Tk()
+
+        # Imports tardifs (PIL, psutil, humanize) après la création de la fenêtre Tk
+        # (PIL/ImageTk segfault sur Linux si importé avant la fenêtre)
+        try:
+            global Image, ImageTk, humanize, psutil
+            from PIL import Image, ImageTk
+            import humanize
+            import psutil
+        except ImportError as e:
+            print(f"⚠️  Bibliothèques optionnelles manquantes ({e}) - certaines fonctions désactivées.")
+            Image = ImageTk = humanize = psutil = None
         self.root.title("Project Explorer Pro")
-        self.root.geometry("1300x750")
+        self.root.geometry("1400x850")
         
         # Configuration des couleurs professionnelles
         self.colors = {
@@ -145,15 +439,13 @@ class ProfessionalApp:
     
     def first_run_setup(self):
         """Configuration de la première exécution"""
-        # Message de bienvenue
-        welcome = """Bienvenue dans Project Explorer Pro ! 🚀
-
-L'application va maintenant :
-1. Créer une icône et un lanceur sur votre bureau
-2. Configurer les dossiers nécessaires
-
-Cliquez sur OK pour continuer."""
-        
+        # Si _silent_setup a déjà créé le flag, pas besoin de refaire
+        done_flag = os.path.join(self.app_folder, ".first_run_done")
+        if os.path.exists(done_flag):
+            return
+        welcome = ("Bienvenue dans Project Explorer Pro ! 🚀\n\n"
+                  "L'application va maintenant configurer l'environnement.\n\n"
+                  "Cliquez sur OK pour continuer.")
         messagebox.showinfo("Première exécution", welcome)
         
         # Créer l'icône
@@ -465,30 +757,25 @@ StartupNotify=true
         home = os.path.expanduser("~")
         
         # 1. Tenter via xdg-user-dir (standard Linux)
+        # On rejette le résultat s'il pointe vers HOME directement
         try:
-            import subprocess
             res = subprocess.run(['xdg-user-dir', 'DESKTOP'], capture_output=True, text=True)
-            if res.returncode == 0 and res.stdout.strip() and res.stdout.strip() != home:
-                return res.stdout.strip()
+            xdg_path = res.stdout.strip()
+            if res.returncode == 0 and xdg_path and xdg_path != home and os.path.isdir(xdg_path):
+                return xdg_path
         except:
             pass
 
-        # 2. Chemins communs
-        paths = [
-            os.path.join(home, "Bureau"),
-            os.path.join(home, "Desktop"),
-            os.path.join(home, "Desktop.localized"),
-            home  # Dernier recours
-        ]
-        
-        for p in paths:
+        # 2. Chemins communs (sous-dossiers du home seulement)
+        for name in ["Bureau", "Desktop", "Desktop.localized"]:
+            p = os.path.join(home, name)
             if os.path.exists(p) and os.path.isdir(p):
-                # Si on est dans HOME, on vérifie quand même si Bureau/Desktop existe
-                if p == home:
-                    continue
                 return p
-                
-        return home
+        
+        # 3. Créer Bureau si aucun bureau trouvé
+        bureau = os.path.join(home, "Bureau")
+        os.makedirs(bureau, exist_ok=True)
+        return bureau
     
     def setup_fonts(self):
         """Configuration des polices"""
@@ -626,13 +913,27 @@ StartupNotify=true
         
         self.notebook = ttk.Notebook(main_panel)
         self.notebook.pack(fill=tk.BOTH, expand=True)
-        
-        # Création des onglets
-        self.setup_main_tab()
-        self.setup_ia_tab()
-        self.setup_gitignore_tab()
-        self.setup_projects_tab()
-        self.setup_config_tab()
+
+        # Activer le défilement des onglets si trop nombreux
+        # Note: tabposition='nw' evité car bug sur certains systèmes Linux
+
+        # Création des onglets (chacun protégé pour ne pas bloquer les autres)
+        for setup_fn in [
+            self.setup_main_tab,
+            self.setup_gitignore_tab,
+            self.setup_projects_tab,
+            self.setup_config_tab,
+            self.setup_ia_tab,
+        ]:
+            try:
+                setup_fn()
+            except Exception as tab_err:
+                # Créer un onglet d'erreur plutôt que de tout bloquer
+                err_tab = ttk.Frame(self.notebook)
+                self.notebook.add(err_tab, text="⚠️ Erreur")
+                tk.Label(err_tab, text=f"Erreur chargement onglet:\n{tab_err}",
+                         fg='red').pack(padx=20, pady=20)
+
         
         status_frame = tk.Frame(self.root, bg=self.colors['bg_tertiary'], height=30)
         status_frame.pack(fill=tk.X, side=tk.BOTTOM)
@@ -643,16 +944,47 @@ StartupNotify=true
                                      anchor=tk.W)
         self.status_label.pack(side=tk.LEFT, padx=10)
         
-        self.progress = ttk.Progressbar(status_frame, mode='determinate', length=200)
-        self.progress.pack(side=tk.RIGHT, padx=10, pady=5)
+        # Barre de progression custom (remplace ttk.Progressbar qui segfaulte sur Ubuntu/Py3.10)
+        class _ProgressBarWidget:
+            """Barre de progression Canvas avec API compatible ttk.Progressbar"""
+            def __init__(inner, parent, colors):
+                inner._value = 0
+                inner._colors = colors
+                inner._canvas = tk.Canvas(parent, height=18, width=200,
+                                         bg=colors['bg_tertiary'], highlightthickness=0)
+            def pack(inner, **kw):
+                inner._canvas.pack(**kw)
+            def _draw(inner):
+                w = inner._canvas.winfo_width() or 200
+                inner._canvas.delete('all')
+                filled = int(w * inner._value / 100)
+                if filled > 0:
+                    inner._canvas.create_rectangle(0, 0, filled, 18,
+                                                   fill=inner._colors['accent'], outline='')
+            def config(inner, **kw):
+                if 'value' in kw:
+                    inner._value = kw['value']
+                inner._draw()
+            def __setitem__(inner, key, value):
+                if key == 'value':
+                    inner._value = value
+                    inner._draw()
+            def __getitem__(inner, key):
+                if key == 'value':
+                    return inner._value
+                return None
+
+        self.progress = _ProgressBarWidget(status_frame, self.colors)
+        self.progress.pack(side=tk.RIGHT, padx=10, pady=6)
+
     
     def setup_main_tab(self):
         """Onglet principal"""
         tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="📦 Export principal")
+        self.notebook.add(tab, text="📦 Export")
         
         # Frame gauche - Infos projet
-        left_frame = tk.Frame(tab, bg=self.colors['bg_secondary'], width=300)
+        left_frame = tk.Frame(tab, bg=self.colors['bg_secondary'], width=450)
         left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
         left_frame.pack_propagate(False)
         
@@ -662,7 +994,7 @@ StartupNotify=true
         tk.Label(left_frame, text="Chemin:", bg=self.colors['bg_secondary']).pack(anchor=tk.W, padx=10)
         
         self.path_var = tk.StringVar()
-        tk.Entry(left_frame, textvariable=self.path_var).pack(fill=tk.X, padx=10, pady=5)
+        tk.Entry(left_frame, textvariable=self.path_var, font=self.fonts['normal']).pack(fill=tk.X, padx=10, pady=5, ipady=5)
         
         tk.Button(left_frame, text="📂 Parcourir", command=self.browse_folder,
                  bg=self.colors['accent'], fg='white', padx=10).pack(padx=10, pady=5)
@@ -694,7 +1026,7 @@ StartupNotify=true
         tk.Label(left_frame, text="PROJETS RÉCENTS", font=self.fonts['title'],
                 bg=self.colors['bg_secondary'], fg=self.colors['accent']).pack(anchor=tk.W, pady=(20,10), padx=10)
         
-        self.recent_listbox = tk.Listbox(left_frame, height=8,
+        self.recent_listbox = tk.Listbox(left_frame, height=20,
                                         bg='white', selectbackground=self.colors['accent_light'])
         self.recent_listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         self.recent_listbox.bind('<Double-Button-1>', self.load_recent_project)
@@ -808,7 +1140,7 @@ StartupNotify=true
     def setup_gitignore_tab(self):
         """Onglet gestion .gitignore"""
         tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="🔒 Gestion .gitignore")
+        self.notebook.add(tab, text="🔒 .gitignore")
         
         main_frame = tk.Frame(tab, bg=self.colors['bg_secondary'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -874,7 +1206,7 @@ StartupNotify=true
     def setup_projects_tab(self):
         """Onglet historique des projets exportés"""
         tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="📚 Projets exportés")
+        self.notebook.add(tab, text="📚 Projets")
         
         main_frame = tk.Frame(tab, bg=self.colors['bg_secondary'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -901,7 +1233,7 @@ StartupNotify=true
         
         # Liste des projets
         columns = ('Date', 'Projet', 'Source', 'Taille', 'Fichiers', 'Fichier exporté')
-        self.projects_tree = ttk.Treeview(main_frame, columns=columns, show='headings', height=15)
+        self.projects_tree = ttk.Treeview(main_frame, columns=columns, show='headings', height=20)
         
         for col in columns:
             self.projects_tree.heading(col, text=col)
@@ -938,7 +1270,7 @@ StartupNotify=true
     def setup_config_tab(self):
         """Onglet configuration"""
         tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="⚙️ Configuration")
+        self.notebook.add(tab, text="⚙️ Config")
         
         main_frame = tk.Frame(tab, bg=self.colors['bg_secondary'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -1064,7 +1396,8 @@ StartupNotify=true
             self.save_config()
     def browse_folder(self):
         """Sélectionne un dossier"""
-        folder = filedialog.askdirectory(title="Sélectionner le dossier du projet")
+        folder = ask_modern_directory(self.root, title="Sélectionner le dossier du projet",
+                                      colors=self.colors, fonts=self.fonts)
         if folder:
             self.path_var.set(folder)
             self.ia_target_var.set(folder) # Synchro avec l'onglet IA
@@ -1461,7 +1794,7 @@ StartupNotify=true
         ia_entry = tk.Entry(target_frame, textvariable=self.ia_target_var, 
                            font=('Segoe UI', 12) if self.os_type == "Windows" else ('Ubuntu', 12),
                            relief=tk.FLAT, highlightthickness=1, highlightbackground=self.colors['bg_tertiary'])
-        ia_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=15, ipady=6)
+        ia_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=15, ipady=10)
         
         # Bouton intelligent (Recherche + Parcourir)
         tk.Button(target_frame, text="🔍 Trouver / Parcourir", 
@@ -1476,31 +1809,89 @@ StartupNotify=true
         tk.Label(quick_pick_frame, text="⚡ Sélection rapide :", 
                  bg=self.colors['bg_secondary'], fg=self.colors['text_secondary'], font=('', 9)).pack(side=tk.LEFT)
         
-        self.ia_recent_combo = ttk.Combobox(quick_pick_frame, state="readonly", width=50)
+        self.ia_recent_combo = ttk.Combobox(quick_pick_frame, state="readonly", width=80, height=25)
         self.ia_recent_combo.pack(side=tk.LEFT, padx=10)
         self.ia_recent_combo.bind("<<ComboboxSelected>>", self.on_ia_recent_selected)
         self.update_ia_recent_combo()
         
-        self.ia_code_input = tk.Text(patcher_frame, height=12, font=('Courier New', 10))
-        self.ia_code_input.pack(fill=tk.BOTH, expand=True, pady=10)
+        header_bar = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
+        header_bar.pack(fill=tk.X, pady=(10, 5))
         
-        tk.Button(patcher_frame, text="⚡ Appliquer les changements (avec Backups)", 
+        tk.Label(header_bar, text="🤖 Collez ici la réponse de l'IA (nom du fichier + bloc de code):", 
+                bg=self.colors['bg_secondary'], font=('Segoe UI', 9, 'italic')).pack(side=tk.LEFT)
+        
+        # Boutons d'action rapide
+        tk.Button(header_bar, text="📋 Coller", command=lambda: self.ia_code_input.insert(tk.END, self.root.clipboard_get()),
+                  bg=self.colors['bg_tertiary'], font=('Segoe UI', 8)).pack(side=tk.RIGHT, padx=5)
+        tk.Button(header_bar, text="🧹 Vider", command=lambda: self.ia_code_input.delete("1.0", tk.END),
+                  bg=self.colors['bg_tertiary'], font=('Segoe UI', 8)).pack(side=tk.RIGHT)
+        
+        # Layout horizontal pour Input + Liste Détectée
+        editor_panel = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
+        editor_panel.pack(fill=tk.BOTH, expand=True, pady=10)
+        
+        # Gauche: L'éditeur
+        editor_left = tk.Frame(editor_panel, bg=self.colors['bg_secondary'])
+        editor_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        self.ia_code_input = tk.Text(editor_left, height=18, font=('Courier New', 10),
+                                    relief=tk.FLAT, highlightthickness=1, highlightbackground=self.colors['bg_tertiary'])
+        self.ia_code_input.pack(fill=tk.BOTH, expand=True)
+        self.ia_code_input.bind("<KeyRelease>", lambda e: self.detect_files_in_ia_input())
+        
+        # Droite: Liste des fichiers détectés
+        detection_frame = tk.LabelFrame(editor_panel, text="🔍 Fichiers Détectés", 
+                                      bg=self.colors['bg_secondary'], font=('', 8, 'bold'))
+        detection_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
+        
+        self.detected_files_list = tk.Listbox(detection_frame, width=30, bg='white', font=('', 9))
+        self.detected_files_list.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        btn_action = tk.Button(patcher_frame, text="⚡ Appliquer les changements (avec Backups)", 
                   command=self.apply_ia_patch,
-                  bg=self.colors['success'], fg='white', font=self.fonts['title'], padx=25, pady=8).pack()
+                  bg=self.colors['success'], fg='white', font=self.fonts['title'], padx=25, pady=8)
+        btn_action.pack()
+        
+        # Astuce
+        tk.Label(patcher_frame, text="💡 Astuce: L'IA détecte automatiquement les blocs comme ```python / ```css etc.", 
+                bg=self.colors['bg_secondary'], fg='gray', font=('', 8)).pack(pady=5)
+
+    def detect_files_in_ia_input(self):
+        """Détecte les fichiers dans l'input IA et met à jour la liste visuelle"""
+        text = self.ia_code_input.get("1.0", tk.END).strip()
+        self.detected_files_list.delete(0, tk.END)
+        
+        pattern = r'(?:[#\*\[]+)?\s*([\w\./\\\\_-]+\.[a-z0-9]+)\s*[#\*\]]*\n\s*```[a-zA-Z]*\n'
+        matches = re.findall(pattern, text)
+        
+        if not matches:
+            self.detected_files_list.insert(tk.END, "Aucun fichier détecté...")
+            return
+            
+        for f in list(dict.fromkeys(matches)): # Unique files
+            self.detected_files_list.insert(tk.END, f"📄 {f}")
 
     def update_ia_recent_combo(self):
         """Met à jour la liste des projets récents dans l'onglet IA"""
         if hasattr(self, 'ia_recent_combo'):
-            projects = list(self.projects.keys())
-            self.ia_recent_combo['values'] = projects
-            if projects: self.ia_recent_combo.set("Choisir un projet récent...")
+            # self.projects est une liste de dicts
+            project_names = [p['name'] for p in self.projects]
+            # Supprimer les doublons et garder l'ordre
+            unique_names = list(dict.fromkeys(project_names))
+            self.ia_recent_combo['values'] = unique_names
+            if unique_names: 
+                self.ia_recent_combo.set("Choisir un projet récent...")
 
     def on_ia_recent_selected(self, event):
         """Quand on choisit un projet dans la liste rapide"""
         name = self.ia_recent_combo.get()
-        if name in self.projects:
-            path = self.projects[name].get('path')
-            if path: self.ia_target_var.set(path)
+        # Chercher le chemin correspondant au nom choisi
+        for p in self.projects:
+            if p['name'] == name:
+                path = p.get('source') or p.get('path') # On veut la source pour l'IA
+                if path:
+                    self.ia_target_var.set(path)
+                break
 
     def browse_ia_target(self):
         """Sélectionne le dossier pour l'IA Assistant (ou recherche si nom tape)"""
@@ -1527,17 +1918,21 @@ StartupNotify=true
                 self.log(f"❌ Aucun dossier trouvé pour '{current}'.", "error")
 
         # Fallback sur le sélecteur classique (en dernier recours)
-        folder = filedialog.askdirectory(initialdir=current if os.path.isdir(current) else os.getcwd())
+        folder = ask_modern_directory(self.root, title="Choisir le dossier cible",
+                                      colors=self.colors, fonts=self.fonts)
         if folder:
             self.ia_target_var.set(folder)
 
     def run_unpacker(self):
         """Logique du désassembleur"""
         import os, re
-        file_path = filedialog.askopenfilename(filetypes=[("Fichiers Texte", "*.txt")])
+        file_path = ask_modern_file(self.root, title="Sélectionner un Export .txt",
+                                   filetypes=[("Fichiers Texte", "*.txt")],
+                                   colors=self.colors, fonts=self.fonts)
         if not file_path: return
         
-        dest_folder = filedialog.askdirectory(title="Choisir le dossier de destination pour la reconstruction")
+        dest_folder = ask_modern_directory(self.root, title="Dossier de destination",
+                                          colors=self.colors, fonts=self.fonts)
         if not dest_folder: return
         
         try:
@@ -1589,8 +1984,9 @@ StartupNotify=true
             messagebox.showerror("Assistant IA", f"Le dossier cible est invalide :\n{target_dir}")
             return
 
-        # Parsing (Même regex que le CLI)
-        pattern = r'(?:#+|(?:\*\*)|\[).*?([\w\./\\_-]+\.[a-z0-9]+).*?\n\s*```[\w]*\n(.*?)\n\s*```'
+        # Parsing amélioré pour supporter plus de styles (Markdown, headings, etc.)
+        # Supporte : ### file.py ou **file.py** ou [file.py]
+        pattern = r'(?:[#\*\[]+)?\s*([\w\./\\\\_-]+\.[a-z0-9]+)\s*[#\*\]]*\n\s*```[a-zA-Z]*\n(.*?)\n\s*```'
         matches = re.findall(pattern, text, re.DOTALL)
         
         if not matches:
@@ -2164,18 +2560,15 @@ def run_setup_wizard():
     print("Choisissez le type d'installation :")
     print("1. ⌨️  Terminal uniquement (Léger, pas d'interface graphique)")
     print("2. 🖥️  Interface graphique complète (Recommandé)")
-    print("3. 🔧 Configuration système seulement (Raccourcis/Path)")
     
     choice = input("\nVotre choix [2]: ").strip() or "2"
     
     if choice == "1":
         print("\n📦 Installation des dépendances Terminal...")
         check_and_install_dependencies(mode="core")
-    elif choice == "2":
+    else:
         print("\n📦 Installation complète (GUI + Terminal)...")
         check_and_install_dependencies(mode="full")
-    else:
-        print("\n⚙️  Vérification système...")
 
     # Classe utilitaire pour configurer la commande globale sans Tkinter
     class MinimalSetup:
@@ -2216,8 +2609,6 @@ def run_setup_wizard():
                             print(f"⚠️  Raccourci bureau : {e}")
 
                 app_setup = SetupApp()
-                # On retire la fenêtre Tk proprement SANS la détruire immédiatement
-                # pour éviter l'erreur ThemeChanged
                 dummy_root.after(100, dummy_root.destroy)
                 dummy_root.mainloop()
             except Exception as e:
@@ -2225,7 +2616,6 @@ def run_setup_wizard():
                 m = MinimalSetup()
                 m.setup_global_command()
         else:
-            # Modes 1 et 3 : pas besoin de Tkinter
             m = MinimalSetup()
             m.setup_global_command()
 
@@ -2234,18 +2624,16 @@ def run_setup_wizard():
         print("   - blx p        : Lancer un export")
         print("   - blx p ls     : Voir l'historique")
         print("   - blx p --gui  : Lancer l'interface graphique")
-        print("   - blx stop     : Quitter/Arrêter")
 
         if choice == "2":
-            ans = input("\n▶️  Voulez-vous lancer l'interface graphique maintenant ? (O/n) : ").strip().lower()
-            if ans != 'n':
-                try:
-                    # Lancement en processus séparé propre
-                    cmd = [sys.executable, os.path.abspath(__file__), "--gui"]
-                    subprocess.Popen(cmd, start_new_session=True)
-                    print("\n🚀 Lancement de l'interface graphique demandé...")
-                except Exception as e:
-                    print(f"⚠️ Erreur lors du lancement : {e}")
+            # Lancer l'interface graphique automatiquement et quitter le terminal
+            print("\n🚀 Lancement de l'interface graphique...")
+            try:
+                cmd = [sys.executable, os.path.abspath(__file__), "--gui"]
+                subprocess.Popen(cmd, start_new_session=True)
+            except Exception as e:
+                print(f"⚠️ Erreur lors du lancement : {e}")
+            sys.exit(0)  # Fermer le terminal proprement
         else:
             print("\n💡 Tapez 'blx p' pour commencer votre premier export.")
 
@@ -2282,9 +2670,12 @@ def run_uninstall():
     if os.path.exists(icon_path): os.remove(icon_path)
     
     desktop_files = [
-        os.path.join(home, ".local", "share", "applications", "project-explorer.desktop")
+        # Entrée menu système
+        os.path.join(home, ".local", "share", "applications", "project-explorer.desktop"),
+        # Fichier directement dans le home (cas xdg-user-dir retournant HOME)
+        os.path.join(home, "project-explorer.desktop"),
     ]
-    # Chercher sur le bureau
+    # Chercher dans les dossiers bureau connus
     for d in ["Desktop", "Bureau", "Desktop.localized"]:
         d_path = os.path.join(home, d)
         if os.path.exists(d_path):
@@ -2293,6 +2684,7 @@ def run_uninstall():
     for df in desktop_files:
         if os.path.exists(df):
             os.remove(df)
+            print(f"   ✓ Supprimé: {df}")
             
     print("🧹 Nettoyage du PATH dans les fichiers shell...")
     for shell_rc in [".bashrc", ".zshrc", ".profile"]:
@@ -2300,19 +2692,25 @@ def run_uninstall():
         if os.path.exists(rc_path):
             try:
                 with open(rc_path, 'r') as f:
-                    lines = f.readlines()
-                
-                with open(rc_path, 'w') as f:
-                    skip = False
-                    for line in lines:
-                        if "# Ajout de Project Explorer Pro au PATH" in line:
-                            skip = True
-                            continue
-                        if skip and 'export PATH="$PATH:' in line and bin_dir in line:
-                            skip = False
-                            continue
-                        if not skip:
-                            f.write(line)
+                    content = f.read()
+                # Supprimer le bloc ajouté par add_to_shell_path (commentaire + export)
+                # Le bloc écrit est : \n# Project Explorer Pro\nexport PATH="$PATH:<bin_dir>"\n
+                import re as _re
+                # Nettoyer toutes les variantes possibles du commentaire
+                cleaned = _re.sub(
+                    r'\n# Project Explorer Pro\nexport PATH=\"\$PATH:[^"]+\"\n',
+                    '',
+                    content
+                )
+                # Ancienne variante aussi (au cas où)
+                cleaned = _re.sub(
+                    r'\n# Ajout de Project Explorer Pro au PATH\nexport PATH=\"\$PATH:[^"]+\"\n',
+                    '',
+                    cleaned
+                )
+                if cleaned != content:
+                    with open(rc_path, 'w') as f:
+                        f.write(cleaned)
             except: pass
 
     print("\n✅ Désinstallation terminée avec succès.")
@@ -2358,15 +2756,22 @@ def main():
             run_uninstall()
             return
 
-        # 2. Command with path or 'ls' -> Mode Persistent CLI
-        # Global loop
+        # 1b. Configuration automatique du PATH au premier lancement (silencieux)
+        _silent_setup()
+
+        # 2. Force GUI via flag
+        if getattr(args, 'gui', False):
+            check_and_install_dependencies(mode="full")
+            app = ProfessionalApp()
+            app.run()
+            return
+
+        # 3. Command with path or 'ls' -> Mode Persistent CLI
         while True:
-            # If we have arguments to process
             ai_mode = getattr(args, 'ai', False)
             unpack_mode = getattr(args, 'unpack', False)
             
             if args.path or args.command == 'ls' or unpack_mode or ai_mode:
-                # Quit check (only if called alone like 'blx --stop')
                 if getattr(args, 'stop', False) and not (args.path or unpack_mode or ai_mode):
                     print("👋 Arrêt de Project Explorer Pro...")
                     break
@@ -2378,18 +2783,16 @@ def main():
                 else:
                     app.run()
                 
-                # Check for stop flag after execution
                 if getattr(args, 'stop', False):
                     break
                 
-                # Clear arguments to show menu next
                 args.path = None
                 args.command = None
                 args.unpack = False
                 args.ai = False
                 continue
 
-            # No arguments -> Show interactive menu (Loop)
+            # 4. No arguments -> Show interactive menu
             if sys.stdout.isatty():
                 print("\n" + "="*45)
                 print(f"{'🔱 MENU GÉNÉRAL PROJECT EXPLORER PRO':^45}")
@@ -2397,11 +2800,11 @@ def main():
                 print("1. 🖥️  Interface Graphique (GUI)")
                 print("2. ⌨️  Mode Terminal (Interactif)")
                 print("3. 📜 Voir l'historique (ls)")
-                print("4. ⚙️  Configuration / Installation (new)")
+                print("4. ⚙️  Installer/Reconfigurer (blx new)")
                 print("5. 📦 Désassemblage (unpack)")
                 print("6. 🤖 Assistant IA (Paster GPT/Claude)")
                 print("7. 🗑️  Désinstaller")
-                print("s. Quitter (--stop)")
+                print("s. Quitter")
                 
                 choice = input("\nAction : ").strip().lower()
                 
@@ -2413,7 +2816,7 @@ def main():
                     app = CLIApp(args)
                     app.run_interactive()
                 elif choice == '3':
-                    args.path = 'ls' # Re-trigger loop with 'ls'
+                    args.path = 'ls'
                     continue
                 elif choice == '4':
                     run_setup_wizard()
@@ -2426,12 +2829,13 @@ def main():
                 elif choice == '7':
                     run_uninstall()
                     break
-                elif choice in ('s', 'stop', 'q', 'quit', 'blx stop', 'blx p --stop', 'blx p -s'):
+                elif choice in ('s', 'stop', 'q', 'quit'):
                     print("👋 À bientôt !")
                     break
-                else: print("⚠️ Choix invalide.")
+                else:
+                    print("⚠️ Choix invalide.")
             else:
-                # Mode non-TTY (ex: Raccourci Bureau) -> Lancer GUI par défaut
+                # Mode non-TTY (Raccourci Bureau) -> GUI directement
                 check_and_install_dependencies(mode="full")
                 app = ProfessionalApp()
                 app.run()
