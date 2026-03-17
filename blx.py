@@ -1564,6 +1564,55 @@ class CLIApp:
                     self.config.update(json.load(f))
             except: pass
 
+    def find_project_by_name(self, name):
+        """Recherche intelligente d'un dossier par nom"""
+        home = os.path.expanduser("~")
+        print(f"🔍 Recherche de '{name}' dans {home}...")
+        matches = []
+        ignore = {'.git', 'node_modules', '__pycache__', '.vscode', '.cache', '.local', '.idea', 'venv', 'env'}
+        
+        try:
+            for root, dirs, files in os.walk(home):
+                # Filtrer directories pour aller vite
+                dirs[:] = [d for d in dirs if d not in ignore and not d.startswith('.')]
+                if name in dirs:
+                    matches.append(os.path.join(root, name))
+                if len(matches) >= 5: break
+        except KeyboardInterrupt:
+            print("\n⚠️ Recherche interrompue.")
+        return matches
+
+    def resolve_path(self, path_input):
+        """Résout le chemin : direct (., .., /, ~) ou par recherche de nom"""
+        if not path_input: return None
+        if path_input == '.': return os.getcwd()
+        if path_input == '..': return os.path.dirname(os.getcwd())
+        
+        # 1. Chemin direct
+        full_path = os.path.abspath(os.path.expanduser(path_input))
+        if os.path.exists(full_path) and os.path.isdir(full_path):
+            return full_path
+            
+        # 2. Recherche par nom
+        if os.sep not in path_input and '/' not in path_input:
+            matches = self.find_project_by_name(path_input)
+            if not matches: return None
+            if len(matches) == 1:
+                print(f"✅ Dossier trouvé: {matches[0]}")
+                return matches[0]
+                
+            print(f"\n📂 Plusieurs dossiers trouvés pour '{path_input}' :")
+            for i, m in enumerate(matches, 1):
+                print(f"  {i}. {m}")
+            
+            choice = input(f"\nVotre choix (1-{len(matches)}) [1]: ").strip() or "1"
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(matches): return matches[idx]
+            except: pass
+            return matches[0]
+        return None
+
     def list_history(self):
         """Affiche l'historique des projets exportés"""
         projects_db = os.path.join(self.app_folder, "projects.json")
@@ -1643,13 +1692,15 @@ class CLIApp:
         print("\n--- CONFIGURATION DE L'EXPORT (TERMINAL) ---")
         
         default_path = os.getcwd()
-        path = input(f"📁 Chemin du projet [{default_path}]: ").strip() or default_path
-        self.args.path = path
+        path_input = input(f"📁 Chemin ou nom du projet [{default_path}]: ").strip() or default_path
         
-        folder = os.path.abspath(path)
-        if not os.path.exists(folder):
-            print(f"❌ Erreur: Le dossier '{folder}' n'existe pas.")
+        folder = self.resolve_path(path_input)
+        if not folder:
+            print(f"❌ Erreur: Impossible de localiser '{path_input}'.")
             return
+            
+        self.args.path = folder
+        folder = os.path.abspath(folder)
 
         name = input(f"🆔 Nom du projet [{os.path.basename(folder)}]: ").strip() or os.path.basename(folder)
         self.args.name = name
@@ -1721,10 +1772,12 @@ class CLIApp:
             self.run_interactive()
             return
 
-        folder = os.path.abspath(self.args.path)
-        if not os.path.exists(folder):
-            print(f"❌ Erreur: Le dossier '{folder}' n'existe pas.")
+        folder = self.resolve_path(self.args.path)
+        if not folder:
+            print(f"❌ Erreur: Le dossier '{self.args.path}' n'existe pas ou est introuvable.")
             return
+
+        folder = os.path.abspath(folder)
 
         # Configuration logic
         project_name = self.args.name or os.path.basename(folder)
@@ -2049,7 +2102,7 @@ def main():
     parser.add_argument('-i', '--include', help='Exceptions à inclure (séparés par virgules)')
     parser.add_argument('-m', '--max-size', type=int, help='Taille max en Mo')
     parser.add_argument('-u', '--unlimited', action='store_true', help='Taille illimitée')
-    parser.add_argument('-cl', action='store_true', help='Compresser sur une ligne (fusion)')
+    parser.add_argument('-cl', '--cl', action='store_true', help='Compresser sur une ligne (fusion)')
     parser.add_argument('-y', '-yes', '--yes', action='store_true', help='Ouvrir le dossier de sortie')
     parser.add_argument('--gui', action='store_true', help='Forcer le mode graphique')
     parser.add_argument('--setup', action='store_true', help='Lancer l\'assistant de configuration')
@@ -2063,72 +2116,78 @@ def main():
     args = parser.parse_args()
 
     try:
-        # Commande Stop / Quitter
-        if getattr(args, 'stop', False):
-            print("\n👋 Arrêt de Project Explorer Pro...")
-            sys.exit(0)
-
-        # Mode Setup (blx new)
+        # 1. First run priority commands (non-loop)
         if getattr(args, 'setup', False):
             run_setup_wizard()
             return
 
-        # Mode Uninstall
         if getattr(args, 'uninstall', False):
             run_uninstall()
             return
 
-        # Si commande 'ls' ou chemin fourni -> Mode CLI
-        if args.path or args.command == 'ls':
-            check_and_install_dependencies(mode="core")
-            app = CLIApp(args)
-            app.run()
-        elif args.gui:
-            check_and_install_dependencies(mode="full")
-            app = ProfessionalApp()
-            app.run()
-        else:
-            # Mode Interactif (Boucle persistante)
+        # 2. Command with path or 'ls' -> Mode Persistent CLI
+        # Global loop
+        while True:
+            # If we have arguments to process
+            if args.path or args.command == 'ls' or getattr(args, 'unpack', False):
+                # Quit check
+                if getattr(args, 'stop', False) and not args.path:
+                    print("👋 Arrêt de Project Explorer Pro...")
+                    break
+                    
+                app = CLIApp(args)
+                app.run()
+                
+                # Check for stop flag after execution
+                if getattr(args, 'stop', False):
+                    break
+                
+                # Clear arguments to show menu next
+                args.path = None
+                args.command = None
+                args.unpack = False
+                continue
+
+            # No arguments -> Show interactive menu (Loop)
             if sys.stdout.isatty():
-                while True:
-                    print("\n" + "="*40)
-                    print(f"{'MENU PROJECT EXPLORER PRO':^40}")
-                    print("="*40)
-                    print("1. 🖥️  Interface Graphique (GUI)")
-                    print("2. ⌨️  Mode Terminal (Interactif)")
-                    print("3. 📜 Voir l'historique (ls)")
-                    print("4. ⚙️  Configuration / Installation (new)")
-                    print("5. � Désassemblage (unpack)")
-                    print("s. Quitter (--stop)")
-                    
-                    choice = input("\nVotre choix : ").strip().lower()
-                    
-                    if choice == '1':
-                        check_and_install_dependencies(mode="full")
-                        app = ProfessionalApp()
-                        app.run()
-                    elif choice == '2':
-                        app = CLIApp(args)
-                        app.run_interactive()
-                    elif choice == '3':
-                        fake_args = argparse.Namespace(path='ls', command='ls')
-                        app = CLIApp(fake_args)
-                        app.list_history()
-                    elif choice == '4':
-                        run_setup_wizard()
-                    elif choice == '5':
-                        app = CLIApp(args)
-                        app.run_unpacker()
-                    elif choice in ('s', 'stop', 'q', 'quit', 'blx stop', 'blx p --stop', 'blx p -s'):
-                        print("👋 À bientôt !")
-                        break
-                    else:
-                        print("⚠️ Choix invalide.")
+                print("\n" + "="*45)
+                print(f"{'🔱 MENU GÉNÉRAL PROJECT EXPLORER PRO':^45}")
+                print("="*45)
+                print("1. 🖥️  Interface Graphique (GUI)")
+                print("2. ⌨️  Mode Terminal (Interactif)")
+                print("3. 📜 Voir l'historique (ls)")
+                print("4. ⚙️  Configuration / Installation (new)")
+                print("5. 📦 Désassemblage (unpack)")
+                print("6. 🗑️  Désinstaller")
+                print("s. Quitter (--stop)")
+                
+                choice = input("\nAction : ").strip().lower()
+                
+                if choice == '1':
+                    check_and_install_dependencies(mode="full")
+                    app = ProfessionalApp()
+                    app.run()
+                elif choice == '2':
+                    app = CLIApp(args)
+                    app.run_interactive()
+                elif choice == '3':
+                    args.path = 'ls' # Re-trigger loop with 'ls'
+                    continue
+                elif choice == '4':
+                    run_setup_wizard()
+                elif choice == '5':
+                    args.unpack = True
+                    continue
+                elif choice == '6':
+                    run_uninstall()
+                    break
+                elif choice in ('s', 'stop', 'q', 'quit', 'blx stop', 'blx p --stop', 'blx p -s'):
+                    print("👋 À bientôt !")
+                    break
+                else: print("⚠️ Choix invalide.")
             else:
                 parser.print_help()
-                check_and_install_dependencies(mode="full")
-                app = ProfessionalApp()
-                app.run()
+                break
     except Exception as e:
         print(f"ERREUR: {e}")
         if sys.stdout.isatty():
