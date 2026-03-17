@@ -1,0 +1,9 @@
+# Dépendances principales
+Pillow>=9.0.0          # Pour la gestion des images
+humanize>=4.0.0        # Pour le formatage des tailles
+psutil>=5.8.0          # Pour les informations système
+
+# Optionnel - pour de meilleures polices
+tkinter-tooltip>=0.1.0 # Pour les tooltips
+
+# Note: tkinter est inclus avec Python
