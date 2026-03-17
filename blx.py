@@ -1862,55 +1862,58 @@ def run_setup_wizard():
     else:
         print("\n⚙️  Vérification système...")
 
-    # Forcer la création de l'application (en mode invisible pour le setup silences UI)
-    try:
-        class SetupApp(ProfessionalApp):
-            def __init__(self):
-                self.os_type = platform.system()
-                self.main_script = os.path.abspath(__file__)
-                self.script_dir = os.path.dirname(self.main_script)
-                self.app_folder = os.path.join(os.path.expanduser("~"), "ProjectExplorer")
-                os.makedirs(self.app_folder, exist_ok=True)
-                
-                # Attributs nécessaires pour create_desktop_shortcut
-                self.desktop_path = self.get_desktop_path()
-                
-                self.setup_global_command()
-                try:
-                    self.create_desktop_shortcut()
-                except Exception as e:
-                    print(f"⚠️  Note: Le raccourci bureau n'a pas pu être créé: {e}")
-        
-        # On simule un root Tk pour les méthodes qui en ont besoin
-        import tkinter as tk
-        try:
-            dummy_root = tk.Tk()
-            dummy_root.withdraw()
-            app = SetupApp()
-            dummy_root.destroy()
-        except:
-            # Si pas de X11/Display, on fait juste le minimum CLI
-            print("⚠️  Environnement sans affichage détecté. Configuration Terminal seulement.")
-            # On peut quand même tenter le setup de la commande globale
-            class MinimalSetup:
-                def __init__(self):
-                    import os, platform
-                    self.os_type = platform.system()
-                    self.main_script = os.path.abspath(__file__)
-                    self.script_dir = os.path.dirname(self.main_script)
-                    self.app_folder = os.path.join(os.path.expanduser("~"), "ProjectExplorer")
-                    os.makedirs(self.app_folder, exist_ok=True)
-                
-                def setup_global_command(self):
-                    # On réutilise la logique ou on la copie
-                    ProfessionalApp.setup_global_command(self)
-                
-                def add_to_shell_path(self, path):
-                    ProfessionalApp.add_to_shell_path(self, path)
+    # Classe utilitaire pour configurer la commande globale sans Tkinter
+    class MinimalSetup:
+        def __init__(self):
+            self.os_type = platform.system()
+            self.main_script = os.path.abspath(__file__)
+            self.script_dir = os.path.dirname(self.main_script)
+            self.app_folder = os.path.join(os.path.expanduser("~"), "ProjectExplorer")
+            os.makedirs(self.app_folder, exist_ok=True)
+            self.desktop_path = None
 
+        def setup_global_command(self):
+            ProfessionalApp.setup_global_command(self)
+
+        def add_to_shell_path(self, path):
+            ProfessionalApp.add_to_shell_path(self, path)
+
+    try:
+        if choice == "2":
+            # Mode GUI : on utilise Tkinter pour créer le raccourci bureau
+            try:
+                import tkinter as tk
+                dummy_root = tk.Tk()
+                dummy_root.withdraw()
+
+                class SetupApp(ProfessionalApp):
+                    def __init__(self):
+                        self.os_type = platform.system()
+                        self.main_script = os.path.abspath(__file__)
+                        self.script_dir = os.path.dirname(self.main_script)
+                        self.app_folder = os.path.join(os.path.expanduser("~"), "ProjectExplorer")
+                        os.makedirs(self.app_folder, exist_ok=True)
+                        self.desktop_path = self.get_desktop_path()
+                        self.setup_global_command()
+                        try:
+                            self.create_desktop_shortcut()
+                        except Exception as e:
+                            print(f"⚠️  Raccourci bureau : {e}")
+
+                app_setup = SetupApp()
+                # On retire la fenêtre Tk proprement SANS la détruire immédiatement
+                # pour éviter l'erreur ThemeChanged
+                dummy_root.after(100, dummy_root.destroy)
+                dummy_root.mainloop()
+            except Exception as e:
+                print(f"⚠️  Mode graphique indisponible ({e}). Configuration Terminal seulement.")
+                m = MinimalSetup()
+                m.setup_global_command()
+        else:
+            # Modes 1 et 3 : pas besoin de Tkinter
             m = MinimalSetup()
             m.setup_global_command()
-            
+
         print("\n✅ Configuration terminée avec succès !")
         print("\n🚀 Commandes disponibles :")
         print("   - blx p        : Lancer un export")
