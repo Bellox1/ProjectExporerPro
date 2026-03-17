@@ -1688,6 +1688,85 @@ class CLIApp:
         except Exception as e:
             print(f"❌ Erreur: {e}")
 
+    def apply_ai_changes(self, text, target_dir):
+        """Parse le texte de l'IA et applique les changements avec backup"""
+        # On cherche un titre (Markdown, gras ou [brackets]) suivi de texte puis un bloc de code
+        # On essaie d'isoler un chemin de fichier (ex: index.html ou css/style.css)
+        # On accepte les emojis et décorations autour
+        pattern = r'(?:#+|(?:\*\*)|\[).*?([\w\./\\_-]+\.[a-z0-9]+).*?\n\s*```[\w]*\n(.*?)\n\s*```'
+        matches = re.findall(pattern, text, re.DOTALL)
+        
+        if not matches:
+            print("⚠️ Aucun fichier détecté. Vérifiez le format (Titre du fichier puis bloc de code ```)")
+            return False
+
+        # Création du dossier de backup
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_root = os.path.join(target_dir, "backups_blx", timestamp)
+        
+        modified_count = 0
+        for rel_path, content in matches:
+            # Nettoyer le chemin (enlever emojis ou espaces superflus)
+            rel_path = re.sub(r'[^\w\.\-/]', '', rel_path).strip('/')
+            full_path = os.path.join(target_dir, rel_path)
+            
+            # 1. Backup si le fichier existe
+            if os.path.exists(full_path):
+                backup_path = os.path.join(backup_root, rel_path)
+                os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+                shutil.copy2(full_path, backup_path)
+                status = "Mise à jour (Backup créé)"
+            else:
+                status = "Nouveau fichier"
+            
+            # 2. Ecriture du nouveau contenu
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            with open(full_path, 'w', encoding='utf-8') as f:
+                f.write(content.strip())
+            
+            print(f"✅ {rel_path} : {status}")
+            modified_count += 1
+            
+        if modified_count > 0:
+            print(f"\n🎉 Succès ! {modified_count} fichiers traités.")
+            print(f"📍 Backups disponibles dans : {backup_root}")
+            return True
+        return False
+
+    def run_ai_assistant(self, target_dir=None):
+        """Mode interactif pour coller une réponse d'IA"""
+        print(f"\n{'🤖 MODE ASSISTANT IA':^50}")
+        print("="*50)
+        
+        if not target_dir:
+            print(f"📍 Répertoire de travail : {os.getcwd()}")
+            path_input = input("📁 Dossier cible (Entrée pour '.') : ").strip() or "."
+            target_dir = self.resolve_path(path_input)
+            if not target_dir:
+                print("❌ Dossier introuvable.")
+                return
+
+        print("\n📝 Collez la réponse de l'IA ci-dessous.")
+        print("💡 (Sous Linux/Mac: Entrée puis Ctrl+D pour valider)")
+        print("💡 (Sous Windows: Entrée puis Ctrl+Z puis Entrée)")
+        print("-" * 30)
+        
+        lines = []
+        try:
+            while True:
+                line = sys.stdin.readline()
+                if not line: break
+                lines.append(line)
+        except EOFError: pass
+        
+        ai_text = "".join(lines)
+        if not ai_text.strip():
+            print("❌ Texte vide.")
+            return
+
+        print("\n⚙️ Analyse et application des changements...")
+        self.apply_ai_changes(ai_text, target_dir)
+
     def run_interactive(self):
         """Mode terminal interactif (Option 2)"""
         print("\n--- CONFIGURATION DE L'EXPORT (TERMINAL) ---")
@@ -2094,6 +2173,7 @@ def main():
     parser.add_argument('--gui', action='store_true', help='Forcer le mode graphique')
     parser.add_argument('--setup', action='store_true', help='Lancer l\'assistant de configuration')
     parser.add_argument('--uninstall', action='store_true', help='Désinstaller l\'application')
+    parser.add_argument('--ai', action='store_true', help='Mode Assistant IA (Appliquer réponse IA)')
     parser.add_argument('--unpack', action='store_true', help='Désassembler un projet (v3.0)')
     parser.add_argument('-s', '--stop', action='store_true', help='Arrêter et quitter l\'application')
     
@@ -2116,14 +2196,21 @@ def main():
         # Global loop
         while True:
             # If we have arguments to process
-            if args.path or args.command == 'ls' or getattr(args, 'unpack', False):
-                # Quit check
-                if getattr(args, 'stop', False) and not args.path:
+            ai_mode = getattr(args, 'ai', False)
+            unpack_mode = getattr(args, 'unpack', False)
+            
+            if args.path or args.command == 'ls' or unpack_mode or ai_mode:
+                # Quit check (only if called alone like 'blx --stop')
+                if getattr(args, 'stop', False) and not (args.path or unpack_mode or ai_mode):
                     print("👋 Arrêt de Project Explorer Pro...")
                     break
                     
                 app = CLIApp(args)
-                app.run()
+                
+                if ai_mode:
+                    app.run_ai_assistant(app.resolve_path(args.path) if args.path else None)
+                else:
+                    app.run()
                 
                 # Check for stop flag after execution
                 if getattr(args, 'stop', False):
@@ -2133,6 +2220,7 @@ def main():
                 args.path = None
                 args.command = None
                 args.unpack = False
+                args.ai = False
                 continue
 
             # No arguments -> Show interactive menu (Loop)
@@ -2145,7 +2233,8 @@ def main():
                 print("3. 📜 Voir l'historique (ls)")
                 print("4. ⚙️  Configuration / Installation (new)")
                 print("5. 📦 Désassemblage (unpack)")
-                print("6. 🗑️  Désinstaller")
+                print("6. 🤖 Assistant IA (Paster GPT/Claude)")
+                print("7. 🗑️  Désinstaller")
                 print("s. Quitter (--stop)")
                 
                 choice = input("\nAction : ").strip().lower()
@@ -2166,6 +2255,9 @@ def main():
                     args.unpack = True
                     continue
                 elif choice == '6':
+                    app = CLIApp(args)
+                    app.run_ai_assistant()
+                elif choice == '7':
                     run_uninstall()
                     break
                 elif choice in ('s', 'stop', 'q', 'quit', 'blx stop', 'blx p --stop', 'blx p -s'):
