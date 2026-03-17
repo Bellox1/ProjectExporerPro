@@ -1,40 +1,14 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-import os
-import sys
-import platform
-from datetime import datetime
-import subprocess
-import zipfile
-import json
-import threading
-import queue
-import fnmatch
-import shutil
-
-# On ne fait plus d'importation globale de tkinter ou PIL
-# car cela bloque le lancement sur les systèmes sans interface graphique
+# Fichier blx.py - Project Explorer Pro
+# Toutes les importations sont faites de manière différée pour une portabilité maximale
 
 def check_and_install_dependencies(mode="full"):
     """Vérifie et installe les dépendances selon le mode choisi (core/full)"""
+    import os, sys, subprocess
     if mode == "none": return
-    
-    # Dépendances de base (CLI + GUI)
-    core_deps = [
-        ("psutil", "psutil"),
-        ("humanize", "humanize")
-    ]
-    
-    # Dépendances spécifiques au mode graphique
-    gui_deps = [
-        ("PIL", "Pillow"),
-        ("tktooltip", "tkinter-tooltip")
-    ]
-    
-    dependencies = core_deps
-    if mode == "full":
-        dependencies += gui_deps
+    # ... rest of the logic ...
+    core_deps = [("psutil", "psutil"), ("humanize", "humanize")]
+    gui_deps = [("PIL", "Pillow"), ("tktooltip", "tkinter-tooltip")]
+    dependencies = core_deps + (gui_deps if mode == "full" else [])
     
     missing = []
     for module_name, package_name in dependencies:
@@ -52,9 +26,7 @@ def check_and_install_dependencies(mode="full"):
         try:
             os.environ["INSTALL_ATTEMPTED"] = "true"
             subprocess.check_call([sys.executable, "-m", "pip", "install", "--user"] + missing)
-            print("✅ Installation terminée.")
-            # Si on installe des trucs importants, on redémarre
-            print("🔄 Redémarrage pour appliquer les changements...")
+            print("✅ Installation terminée. Redémarrage...")
             os.execv(sys.executable, [sys.executable] + sys.argv)
         except Exception as e:
             print(f"❌ Erreur installation: {e}")
@@ -63,6 +35,7 @@ def check_and_install_dependencies(mode="full"):
 
 class ProfessionalApp:
     def __init__(self):
+        import os, sys, platform, threading, queue, json
         # Imports retardés pour ne pas bloquer le CLI
         try:
             global tk, ttk, filedialog, messagebox, Image, ImageTk, humanize, psutil
@@ -83,57 +56,27 @@ class ProfessionalApp:
         
         # Configuration des couleurs professionnelles
         self.colors = {
-            'bg_primary': '#f5f5f5',      # Gris très clair
-            'bg_secondary': '#ffffff',      # Blanc
-            'bg_tertiary': '#e0e0e0',       # Gris clair
-            'bg_dark': '#2d2d2d',           # Gris foncé
-            'accent': '#0066cc',             # Bleu
-            'accent_light': '#4d94ff',       # Bleu clair
-            'success': '#28a745',            # Vert
-            'warning': '#ffc107',             # Jaune
-            'error': '#dc3545',                # Rouge
-            'text_primary': '#212529',        # Noir
-            'text_secondary': '#6c757d',      # Gris
-            'text_light': '#ffffff'           # Blanc
+            'bg_primary': '#f5f5f5', 'bg_secondary': '#ffffff', 'bg_tertiary': '#e0e0e0',
+            'bg_dark': '#2d2d2d', 'accent': '#0066cc', 'accent_light': '#4d94ff',
+            'success': '#28a745', 'warning': '#ffc107', 'error': '#dc3545',
+            'text_primary': '#212529', 'text_secondary': '#6c757d', 'text_light': '#ffffff'
         }
         
         self.root.configure(bg=self.colors['bg_primary'])
-        
-        # Variables
         self.os_type = platform.system()
         self.desktop_path = self.get_desktop_path()
         self.app_folder = os.path.join(os.path.expanduser("~"), "ProjectExplorer")
-        self.config_file = os.path.join(self.app_folder, "config.json")
-        self.projects_db = os.path.join(self.app_folder, "projects.json")
-        self.gitignore_overrides = {}
-        self.is_processing = False
-        self.cancel_export = False
-        
-        # Création des dossiers
         os.makedirs(self.app_folder, exist_ok=True)
-        
-        # Chemin absolu du script principal
         self.main_script = os.path.abspath(__file__)
         self.script_dir = os.path.dirname(self.main_script)
-        
-        # Vérifier si c'est la première exécution
-        self.check_first_run()
-        
-        # Configuration de la commande globale
-        self.setup_global_command()
-        
-        # Chargement configuration
+        self.config_file = os.path.join(self.app_folder, "config.json")
+        self.projects_db = os.path.join(self.app_folder, "projects.json")
+        self.is_processing = False
+        self.log_queue = queue.Queue()
         self.load_config()
         self.load_projects()
-        
-        # Configuration des polices
         self.setup_fonts()
-        
-        # Création de l'interface
         self.setup_ui()
-        
-        # Variables pour les logs
-        self.log_queue = queue.Queue()
         self.process_log_queue()
     
     def check_first_run(self):
@@ -1448,6 +1391,7 @@ Créé pour répondre à tous vos besoins !"""
 
 class CLIApp:
     def __init__(self, args):
+        import os, platform
         self.args = args
         self.os_type = platform.system()
         self.app_folder = os.path.join(os.path.expanduser("~"), "ProjectExplorer")
@@ -1455,11 +1399,8 @@ class CLIApp:
         self.config_file = os.path.join(self.app_folder, "config.json")
         try:
             global humanize, psutil
-            import humanize
-            import psutil
-        except ImportError:
-            # On tente de continuer sans, ou on installe
-            pass
+            import humanize, psutil
+        except ImportError: pass
         self.load_config()
         
     def load_config(self):
@@ -1874,6 +1815,11 @@ def main():
     args = parser.parse_args()
 
     try:
+        # Mode Setup (blx new)
+        if getattr(args, 'setup', False):
+            run_setup_wizard()
+            return
+
         # Mode Uninstall
         if getattr(args, 'uninstall', False):
             run_uninstall()
@@ -1935,3 +1881,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n👋 Sortie rapide demandée. Au revoir !")
         sys.exit(0)
+    except Exception as e:
+        print(f"❌ Erreur système Fatale: {e}")
+        sys.exit(1)
