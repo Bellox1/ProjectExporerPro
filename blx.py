@@ -1784,7 +1784,9 @@ class CLIApp:
 
         folder = self.resolve_path(self.args.path)
         if not folder:
-            print(f"❌ Erreur: Le dossier '{self.args.path}' n'existe pas ou est introuvable.")
+            tried_path = os.path.abspath(os.path.expanduser(self.args.path))
+            print(f"❌ Erreur: Le dossier '{self.args.path}' est introuvable.")
+            print(f"📍 Chemin tenté (absolu) : {tried_path}")
             return
 
         folder = os.path.abspath(folder)
