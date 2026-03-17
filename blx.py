@@ -1793,7 +1793,7 @@ class CLIApp:
         if hasattr(self.args, 'no_merge') and self.args.no_merge:
             merge_lines = False
             
-        max_size = float('inf') if getattr(self.args, 'unlimited', False) else (self.args.max_size or self.config.get('max_size_mb', 100)) * 1024 * 1024
+        max_size = float('inf') if getattr(self.args, 'unlimited', False) else (self.args.max_size or self.config.get('max_size_mb', 500)) * 1024 * 1024
         
         # Patterns
         exclude_patterns = self.config['exclude_patterns'].copy()
@@ -1827,7 +1827,9 @@ class CLIApp:
             f.write(f"MERGE_LINES: {'YES' if merge_lines else 'NO'}\n")
             f.write("="*60 + "\n\n")
             
+            limit_reached = False
             for root, dirs, files in os.walk(folder):
+                if limit_reached: break
                 for file in files:
                     file_path = os.path.join(root, file)
                     rel_path = os.path.relpath(file_path, folder)
@@ -1846,9 +1848,14 @@ class CLIApp:
                     
                     if not should_include: continue
                     
-                    file_size = os.path.getsize(file_path)
+                    try:
+                        file_size = os.path.getsize(file_path)
+                    except: continue
+
                     if current_size + file_size > max_size:
-                        print("\n⚠️ Limite de taille atteinte.")
+                        print(f"\n⚠️ Limite de taille atteinte ({self.config.get('max_size_mb', 500)} Mo).")
+                        print("👉 Utilisez l'option --unlimited ou -u pour ignorer cette limite.")
+                        limit_reached = True
                         break
                         
                     f.write(f"\n[{rel_path}]\n")
