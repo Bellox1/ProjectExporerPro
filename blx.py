@@ -1426,21 +1426,36 @@ StartupNotify=true
                   command=self.run_unpacker,
                   bg=self.colors['accent'], fg='white', padx=15).pack(side=tk.LEFT)
         
-        # Section 2: IA Patcher (Beta)
-        patcher_frame = tk.LabelFrame(main_frame, text="🛠️ IA Patcher (Appliquer du code)", 
+        # Section 2: Assistant IA (Appliquer du code)
+        patcher_frame = tk.LabelFrame(main_frame, text="🤖 Assistant IA (Paster GPT/Claude)", 
                                     bg=self.colors['bg_secondary'], font=self.fonts['title'], 
                                     padx=15, pady=15)
         patcher_frame.pack(fill=tk.BOTH, expand=True)
         
-        tk.Label(patcher_frame, text="Collez ici le code suggéré par l'IA pour l'intégrer au projet actuel.", 
+        tk.Label(patcher_frame, text="Collez ici la réponse de l'IA (nom du fichier + bloc de code).", 
                 bg=self.colors['bg_secondary'], fg=self.colors['text_secondary']).pack(anchor=tk.W)
+
+        # Sélection du dossier cible
+        target_frame = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
+        target_frame.pack(fill=tk.X, pady=5)
         
-        self.ia_code_input = tk.Text(patcher_frame, height=10, font=('Courier New', 10))
+        tk.Label(target_frame, text="📁 Dossier cible :", bg=self.colors['bg_secondary']).pack(side=tk.LEFT)
+        self.ia_target_var = tk.StringVar(value=os.getcwd())
+        tk.Entry(target_frame, textvariable=self.ia_target_var, font=self.fonts['normal']).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
+        tk.Button(target_frame, text="Parcourir...", command=self.browse_ia_target).pack(side=tk.LEFT)
+        
+        self.ia_code_input = tk.Text(patcher_frame, height=12, font=('Courier New', 10))
         self.ia_code_input.pack(fill=tk.BOTH, expand=True, pady=10)
         
-        tk.Button(patcher_frame, text="⚡ Appliquer les correctifs au projet", 
+        tk.Button(patcher_frame, text="⚡ Appliquer les changements (avec Backups)", 
                   command=self.apply_ia_patch,
-                  bg=self.colors['success'], fg='white', font=self.fonts['title'], padx=20, pady=5).pack()
+                  bg=self.colors['success'], fg='white', font=self.fonts['title'], padx=25, pady=8).pack()
+
+    def browse_ia_target(self):
+        """Sélectionne le dossier pour l'IA Assistant"""
+        folder = filedialog.askdirectory(initialdir=self.ia_target_var.get())
+        if folder:
+            self.ia_target_var.set(folder)
 
     def run_unpacker(self):
         """Logique du désassembleur"""
@@ -1488,15 +1503,69 @@ StartupNotify=true
             self.log(f"❌ Erreur Unpacker: {e}", "error")
 
     def apply_ia_patch(self):
-        """Tente d'appliquer le code collé au projet actuel (Concept v3.0)"""
-        code = self.ia_code_input.get("1.0", tk.END).strip()
-        if not code:
-            messagebox.showwarning("IA Patcher", "Veuillez d'abord coller du code.")
+        """Applique les changements suggérés par l'IA"""
+        text = self.ia_code_input.get("1.0", tk.END).strip()
+        target_dir = self.ia_target_var.get().strip()
+        
+        if not text:
+            messagebox.showwarning("Assistant IA", "Veuillez d'abord coller la réponse de l'IA.")
             return
             
-        messagebox.showinfo("IA Patcher (Beta)", 
-                          "Analyse du code IA... \n\nCette fonctionnalité va comparer votre code avec la suggestion IA. \n(Bientôt disponible en version automatique complète)")
-        self.log("💡 IA Patcher: Analyse de la suggestion terminée.", "info")
+        if not os.path.isdir(target_dir):
+            messagebox.showerror("Assistant IA", f"Le dossier cible est invalide :\n{target_dir}")
+            return
+
+        # Parsing (Même regex que le CLI)
+        pattern = r'(?:#+|(?:\*\*)|\[).*?([\w\./\\_-]+\.[a-z0-9]+).*?\n\s*```[\w]*\n(.*?)\n\s*```'
+        matches = re.findall(pattern, text, re.DOTALL)
+        
+        if not matches:
+            messagebox.showwarning("Assistant IA", "Aucun fichier ou bloc de code (```) détecté dans le texte.")
+            return
+
+        # Confirmation
+        msg = f"L'IA a détecté {len(matches)} fichiers à modifier.\n\nVoulez-vous les appliquer dans :\n{target_dir} ?"
+        if not messagebox.askyesno("Confirmer les changements", msg):
+            return
+
+        # Création du dossier de backup
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_root = os.path.join(target_dir, "backups_blx", timestamp)
+        
+        try:
+            modified_count = 0
+            for rel_path, content in matches:
+                # Nettoyage du chemin
+                rel_path = re.sub(r'[^\w\.\-/]', '', rel_path).strip('/')
+                full_path = os.path.join(target_dir, rel_path)
+                
+                # 1. Backup si existe
+                if os.path.exists(full_path):
+                    backup_path = os.path.join(backup_root, rel_path)
+                    os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+                    shutil.copy2(full_path, backup_path)
+                    status = "Mise à jour (Backup ok)"
+                else:
+                    status = "Création"
+                
+                # 2. Ecriture
+                os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                with open(full_path, 'w', encoding='utf-8') as f:
+                    f.write(content.strip())
+                
+                self.log(f"Assistant IA: {rel_path} ({status})", "success")
+                modified_count += 1
+                
+            final_msg = f"🎉 Succès ! {modified_count} fichiers traités.\n\n"
+            if os.path.exists(backup_root):
+                final_msg += f"📍 Backups créés dans :\n{backup_root}"
+            
+            messagebox.showinfo("Assistant IA", final_msg)
+            self.ia_code_input.delete("1.0", tk.END) # Nettoyer après succès
+            
+        except Exception as e:
+            messagebox.showerror("Assistant IA", f"Erreur lors de l'application :\n{e}")
+            self.log(f"Erreur Assistant IA: {e}", "error")
 
     def log(self, message, level='info'):
         """Ajoute un message au journal"""
