@@ -873,17 +873,19 @@ StartupNotify=true
             self.stats_labels[key].pack()
         
         # Liste des projets
-        columns = ('Date', 'Projet', 'Source', 'Taille', 'Fichiers', 'Format')
+        columns = ('Date', 'Projet', 'Source', 'Taille', 'Fichiers', 'Fichier exporté')
         self.projects_tree = ttk.Treeview(main_frame, columns=columns, show='headings', height=15)
         
         for col in columns:
             self.projects_tree.heading(col, text=col)
-            if col == 'Source':
-                self.projects_tree.column(col, width=250)
-            elif col == 'Projet':
+            if col == 'Fichier exporté':
+                self.projects_tree.column(col, width=350)
+            elif col == 'Source':
                 self.projects_tree.column(col, width=150)
+            elif col == 'Projet':
+                self.projects_tree.column(col, width=130)
             else:
-                self.projects_tree.column(col, width=100)
+                self.projects_tree.column(col, width=80)
         
         scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=self.projects_tree.yview)
         self.projects_tree.configure(yscrollcommand=scrollbar.set)
@@ -990,7 +992,7 @@ StartupNotify=true
         gitignore_path = os.path.join(folder_path, '.gitignore')
         if os.path.exists(gitignore_path):
             try:
-                with open(gitignore_path, 'r') as f:
+                with open(gitignore_path, 'r', encoding='utf-8') as f:
                     for line in f:
                         line = line.strip()
                         if line and not line.startswith('#'):
@@ -1307,14 +1309,16 @@ StartupNotify=true
                 date = f"{date[6:8]}/{date[4:6]}/{date[0:4]} {date[9:11]}:{date[11:13]}"
             
             size_str = self.format_size(project['size'])
-            format_str = "ZIP" if project.get('zip') else "TXT"
-            if project.get('merge_lines'):
-                format_str += " (1 ligne)"
+        
+            # Chemin du fichier .txt exporté
+            export_path = project.get('path', '')
+            export_name = project.get('name', 'export')
+            txt_file = os.path.join(export_path, f"{export_name}.txt") if export_path else 'Inconnu'
             
             self.projects_tree.insert('', tk.END,
                                      values=(date, project['name'],
                                             os.path.basename(project['source']),
-                                            size_str, project['files'], format_str),
+                                            size_str, project['files'], txt_file),
                                      tags=(project['path'],))
             
             total_size += project['size']
