@@ -1558,10 +1558,14 @@ class CLIApp:
         import os, json
         projects_db = os.path.join(self.app_folder, "projects.json")
         if not os.path.exists(projects_db):
-            print("📭 Aucun projet exporté pour le moment.")
+            print("� Aucun projet exporté pour le moment.")
             return
 
         try:
+            # Vérification que le fichier n'est pas vide
+            if os.path.getsize(projects_db) == 0:
+                print("💭 Aucun projet exporté pour le moment.")
+                return
             with open(projects_db, 'r') as f:
                 projects = json.load(f)
             
@@ -1686,7 +1690,7 @@ class CLIApp:
         self.run()
 
     def run(self):
-        import os, fnmatch, subprocess
+        import os, fnmatch, subprocess, json
         from datetime import datetime
         
         # Vérification automatique des dépendances CLI
