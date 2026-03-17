@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 # Fichier blx.py - Project Explorer Pro
 # Toutes les importations sont faites de manière différée pour une portabilité maximale
 
@@ -71,8 +74,14 @@ class ProfessionalApp:
         self.script_dir = os.path.dirname(self.main_script)
         self.config_file = os.path.join(self.app_folder, "config.json")
         self.projects_db = os.path.join(self.app_folder, "projects.json")
+        self.gitignore_overrides = {}
         self.is_processing = False
+        self.cancel_export = False
         self.log_queue = queue.Queue()
+        
+        # Initialisation logique
+        self.check_first_run()
+        self.setup_global_command()
         self.load_config()
         self.load_projects()
         self.setup_fonts()
