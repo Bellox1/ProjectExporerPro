@@ -58,17 +58,17 @@ def check_and_install_dependencies(mode="full"):
     
     if missing:
         if os.environ.get("INSTALL_ATTEMPTED") == "true":
-            print(f"⚠️  Certaines dépendances ({', '.join(missing)}) manquent.")
+            print(f" Certaines dépendances ({', '.join(missing)}) manquent.")
             return
 
-        print(f"📦 Installation des dépendances ({mode}): {', '.join(missing)}...")
+        print(f"Installation des dépendances ({mode}): {', '.join(missing)}...")
         try:
             os.environ["INSTALL_ATTEMPTED"] = "true"
             subprocess.check_call([sys.executable, "-m", "pip", "install", "--user"] + missing,
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print("✅ Installation terminée.")
+            print("Installation terminée.")
         except Exception as e:
-            print(f"❌ Erreur installation: {e}")
+            print(f"Erreur installation: {e}")
 
 
 def _silent_setup():
@@ -107,10 +107,10 @@ def _silent_setup():
         # Marquer comme fait
         with open(done_flag, 'w') as _f:
             _f.write(datetime.now().isoformat())
-        print("✅ Configuration initiale du PATH effectuée.")
-        print("💡 Rechargez votre terminal ou tapez: source ~/.bashrc")
+        print("Configuration initiale du PATH effectuée.")
+        print("Rechargez votre terminal ou tapez: source ~/.bashrc")
     except Exception as e:
-        print(f"⚠️  Setup silencieux échoué: {e}")
+        print(f" Setup silencieux échoué: {e}")
 
 # Les imports seront fait à la demande dans les classes
 
@@ -191,9 +191,9 @@ class ModalNavigator(tk.Toplevel if tk else object):
         favs = [
             ("🏠 Home", os.path.expanduser("~")),
             ("🖥️ Bureau", self.get_fav_path("Bureau")),
-            ("📂 Documents", self.get_fav_path("Documents")),
-            ("📁 Downloads", self.get_fav_path("Downloads")),
-            ("⚙️ ProjectExplorer", os.path.join(os.path.expanduser("~"), "ProjectExplorer"))
+            ("Documents", self.get_fav_path("Documents")),
+            ("Downloads", self.get_fav_path("Downloads")),
+            ("ProjectExplorer", os.path.join(os.path.expanduser("~"), "ProjectExplorer"))
         ]
         
         for name, path in favs:
@@ -266,7 +266,7 @@ class ModalNavigator(tk.Toplevel if tk else object):
                 if d.startswith('.') and d != '.gitignore': continue
                 stats = os.stat(os.path.join(self.current_path, d))
                 date = datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M')
-                self.tree.insert('', tk.END, text=os.path.join(self.current_path, d), values=("📁 " + d, "--", date), tags=('dir',))
+                self.tree.insert('', tk.END, text=os.path.join(self.current_path, d), values=("" + d, "--", date), tags=('dir',))
             
             for f in files:
                 if f.startswith('.'): continue
@@ -279,7 +279,7 @@ class ModalNavigator(tk.Toplevel if tk else object):
                 stats = os.stat(os.path.join(self.current_path, f))
                 size = f"{stats.st_size / 1024:.1f} KB"
                 date = datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M')
-                self.tree.insert('', tk.END, text=os.path.join(self.current_path, f), values=("📄 " + f, size, date), tags=('file',))
+                self.tree.insert('', tk.END, text=os.path.join(self.current_path, f), values=("" + f, size, date), tags=('file',))
                 
             self.tree.tag_configure('dir', foreground='black', font=('', 10, 'bold')) # Dossiers en noir et gras
         except Exception as e:
@@ -360,7 +360,7 @@ class ProfessionalApp:
     def __init__(self):
         # Vérification des bibliothèques graphiques
         if not tk:
-            print("❌ Erreur: Tkinter est manquant.")
+            print("Erreur: Tkinter est manquant.")
             print("Lancez 'blx new' pour installer les dépendances nécessaires.")
             sys.exit(1)
 
@@ -375,7 +375,7 @@ class ProfessionalApp:
             import humanize
             import psutil
         except ImportError as e:
-            print(f"⚠️  Bibliothèques optionnelles manquantes ({e}) - certaines fonctions désactivées.")
+            print(f" Bibliothèques optionnelles manquantes ({e}) - certaines fonctions désactivées.")
             Image = ImageTk = humanize = psutil = None
         self.root.title("Project Explorer Pro")
         self.root.geometry("1400x850")
@@ -397,6 +397,8 @@ class ProfessionalApp:
         self.script_dir = os.path.dirname(self.main_script)
         self.config_file = os.path.join(self.app_folder, "config.json")
         self.projects_db = os.path.join(self.app_folder, "projects.json")
+        self.ia_history_db = os.path.join(self.app_folder, "ia_history.json")
+        self.ia_history = []
         self.gitignore_overrides = {}
         self.is_processing = False
         self.cancel_export = False
@@ -408,6 +410,7 @@ class ProfessionalApp:
             self.setup_global_command()
         self.load_config()
         self.load_projects()
+        self.load_ia_history()
         self.setup_fonts()
         self.setup_ui()
         self.process_log_queue()
@@ -464,7 +467,7 @@ class ProfessionalApp:
                   f"{shortcut_path}\n\n"
             
             if self.os_type == "Linux":
-                msg += "💡 NOTE IMPORTANTE (Linux) :\n" \
+                msg += "NOTE IMPORTANTE (Linux) :\n" \
                        "Si l'icône ne s'affiche pas, faites clic-droit sur le fichier sur votre bureau\n" \
                        "et sélectionnez 'Autoriser le lancement' (Allow Launching).\n\n"
             
@@ -530,7 +533,7 @@ static char * folder_xpm[] = {
 """)
             return icon_path_xpm
         except Exception as e:
-            print(f"❌ Erreur création icône: {e}")
+            print(f"Erreur création icône: {e}")
             return None
     
     def setup_global_command(self):
@@ -592,7 +595,7 @@ shift
                     f.write(content)
                 blx_script = blx_bat
             
-            # print(f"✅ Commande globale configurée: {blx_script}") # Silent in GUI
+            # print(f"Commande globale configurée: {blx_script}") # Silent in GUI
             
             # Vérifier si bin_dir est dans le PATH
             path_env = os.environ.get("PATH", "")
@@ -601,7 +604,7 @@ shift
                 
             return True
         except Exception as e:
-            print(f"❌ Erreur setup commande globale: {e}")
+            print(f"Erreur setup commande globale: {e}")
             return False
 
     def add_to_shell_path(self, path_to_add):
@@ -657,7 +660,7 @@ shift
         try:
             desktop = self.desktop_path
             if not os.path.exists(desktop):
-                print(f"❌ Bureau non trouvé: {desktop}")
+                print(f"Bureau non trouvé: {desktop}")
                 return None
             
             icon_path = os.path.join(self.script_dir, "icon.xpm")
@@ -678,7 +681,7 @@ if errorlevel 1 (
     pause
 )
 ''')
-                print(f"✅ Raccourci créé: {bat_path}")
+                print(f"Raccourci créé: {bat_path}")
                 return bat_path
                 
             elif self.os_type == "Darwin":  # macOS
@@ -691,7 +694,7 @@ cd "{self.script_dir}"
 read -p "Appuyez sur Entrée pour quitter..."
 ''')
                 os.chmod(command_path, 0o755)
-                print(f"✅ Raccourci créé: {command_path}")
+                print(f"Raccourci créé: {command_path}")
                 return command_path
                 
             else:  # Linux
@@ -746,7 +749,7 @@ StartupNotify=true
                 return desktop_file
                 
         except Exception as e:
-            print(f"❌ Erreur création raccourci: {e}")
+            print(f"Erreur création raccourci: {e}")
             return None
     
     def get_desktop_path(self):
@@ -823,14 +826,11 @@ StartupNotify=true
             'unlimited_size': False,
             'use_gitignore': True,
             'gitignore_overrides': {},
-            'merge_lines': True,
-            'text_extensions': ['.txt', '.py', '.js', '.html', '.css', '.json', '.xml', 
-                              '.md', '.yaml', '.yml', '.c', '.cpp', '.h', '.java', 
-                              '.php', '.rb', '.go', '.rs', '.sh', '.bat', '.ps1', 
-                              '.sql', '.csv', '.ini', '.cfg', '.conf', '.log',
-                              '.jsx', '.ts', '.tsx', '.vue', '.scss', '.less'],
+            'merge_lines': False,
+            'text_extensions': ['.txt', '.md', '.json', '.xml', '.yaml', '.yml', '.sql', '.csv', '.log'],
             'last_path': '',
-            'recent_projects': []
+            'recent_projects': [],
+            'ia_backup_mode': 'session'
         }
         
         if os.path.exists(self.config_file):
@@ -851,12 +851,29 @@ StartupNotify=true
                     self.projects = json.load(f)
             except:
                 self.projects = []
-    
     def save_projects(self):
         """Sauvegarde la base de données des projets"""
         try:
             with open(self.projects_db, 'w') as f:
                 json.dump(self.projects, f, indent=2)
+        except:
+            pass
+    
+    def load_ia_history(self):
+        """Charge l'historique des actions Assistant IA"""
+        self.ia_history = []
+        if os.path.exists(self.ia_history_db):
+            try:
+                with open(self.ia_history_db, 'r') as f:
+                    self.ia_history = json.load(f)
+            except:
+                self.ia_history = []
+    
+    def save_ia_history(self):
+        """Sauvegarde l'historique des actions Assistant IA"""
+        try:
+            with open(self.ia_history_db, 'w') as f:
+                json.dump(self.ia_history, f, indent=2)
         except:
             pass
     
@@ -930,7 +947,7 @@ StartupNotify=true
             except Exception as tab_err:
                 # Créer un onglet d'erreur plutôt que de tout bloquer
                 err_tab = ttk.Frame(self.notebook)
-                self.notebook.add(err_tab, text="⚠️ Erreur")
+                self.notebook.add(err_tab, text="Erreur")
                 tk.Label(err_tab, text=f"Erreur chargement onglet:\n{tab_err}",
                          fg='red').pack(padx=20, pady=20)
 
@@ -939,7 +956,7 @@ StartupNotify=true
         status_frame.pack(fill=tk.X, side=tk.BOTTOM)
         status_frame.pack_propagate(False)
         
-        self.status_label = tk.Label(status_frame, text="✅ Prêt", 
+        self.status_label = tk.Label(status_frame, text="Prêt", 
                                      bg=self.colors['bg_tertiary'], 
                                      anchor=tk.W)
         self.status_label.pack(side=tk.LEFT, padx=10)
@@ -981,7 +998,7 @@ StartupNotify=true
     def setup_main_tab(self):
         """Onglet principal"""
         tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="📦 Export")
+        self.notebook.add(tab, text="Export")
         
         # Frame gauche - Infos projet
         left_frame = tk.Frame(tab, bg=self.colors['bg_secondary'], width=450)
@@ -996,10 +1013,10 @@ StartupNotify=true
         self.path_var = tk.StringVar()
         tk.Entry(left_frame, textvariable=self.path_var, font=self.fonts['normal']).pack(fill=tk.X, padx=10, pady=5, ipady=5)
         
-        tk.Button(left_frame, text="📂 Parcourir", command=self.browse_folder,
+        tk.Button(left_frame, text="Parcourir", command=self.browse_folder,
                  bg=self.colors['accent'], fg='white', padx=10).pack(padx=10, pady=5)
         
-        tk.Button(left_frame, text="🔍 Analyser", command=self.analyze_folder,
+        tk.Button(left_frame, text="Analyser", command=self.analyze_folder,
                  bg=self.colors['bg_tertiary'], padx=10).pack(padx=10, pady=5)
         
         # Informations
@@ -1008,9 +1025,11 @@ StartupNotify=true
         
         self.info_labels = {}
         info_items = [
-            ('📊 Taille totale', 'Taille'),
-            ('📄 Fichiers', 'Fichiers'),
-            ('📁 Dossiers', 'Dossiers')
+            ('Taille Exports', 'Taille'),
+            ('Taille Backups', 'Taille_IA'),
+            ('Total Utilisé', 'Total_Espace'),
+            ('Fichiers', 'Fichiers'),
+            ('Dossiers', 'Dossiers')
         ]
         
         for label, key in info_items:
@@ -1072,7 +1091,7 @@ StartupNotify=true
         format_frame = tk.Frame(options_frame)
         format_frame.grid(row=2, column=1, sticky=tk.W, padx=10, pady=5)
         
-        self.merge_lines_var = tk.BooleanVar(value=self.config.get('merge_lines', True))
+        self.merge_lines_var = tk.BooleanVar(value=self.config.get('merge_lines', False))
         tk.Checkbutton(format_frame, text="Fusionner sur une ligne", 
                       variable=self.merge_lines_var).pack(anchor=tk.W)
         
@@ -1089,7 +1108,7 @@ StartupNotify=true
         btn_frame = tk.Frame(right_frame)
         btn_frame.pack(pady=20)
         
-        self.export_btn = tk.Button(btn_frame, text="🚀 LANCER L'EXPORT", 
+        self.export_btn = tk.Button(btn_frame, text="LANCER L'EXPORT", 
                                    command=self.start_export,
                                    bg=self.colors['success'], fg='white',
                                    font=self.fonts['title'], padx=30, pady=10)
@@ -1103,7 +1122,7 @@ StartupNotify=true
         self.cancel_btn.pack(side=tk.LEFT, padx=5)
         
         # Journal en bas
-        log_frame = tk.LabelFrame(right_frame, text="📋 Journal d'activité", 
+        log_frame = tk.LabelFrame(right_frame, text="Journal d'activité", 
                                    font=self.fonts['title'])
         log_frame.pack(fill=tk.BOTH, expand=True, pady=10)
         
@@ -1131,16 +1150,16 @@ StartupNotify=true
         log_btn_frame = tk.Frame(log_frame)
         log_btn_frame.pack(fill=tk.X, pady=5)
         
-        tk.Button(log_btn_frame, text="🧹 Effacer", command=self.clear_log,
+        tk.Button(log_btn_frame, text="Effacer", command=self.clear_log,
                  bg=self.colors['bg_tertiary']).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(log_btn_frame, text="💾 Sauvegarder", command=self.save_log,
+        tk.Button(log_btn_frame, text="Sauvegarder", command=self.save_log,
                  bg=self.colors['bg_tertiary']).pack(side=tk.LEFT)
     
     def setup_gitignore_tab(self):
         """Onglet gestion .gitignore"""
         tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="🔒 .gitignore")
+        self.notebook.add(tab, text=".gitignore")
         
         main_frame = tk.Frame(tab, bg=self.colors['bg_secondary'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -1198,7 +1217,7 @@ StartupNotify=true
         right_scroll.config(command=self.override_listbox.yview)
         
         # Bouton sauvegarde
-        tk.Button(main_frame, text="💾 Sauvegarder les exceptions", 
+        tk.Button(main_frame, text="Sauvegarder les exceptions", 
                  command=self.save_gitignore_overrides,
                  bg=self.colors['success'], fg='white',
                  font=self.fonts['title'], padx=30, pady=5).pack(pady=10)
@@ -1218,8 +1237,8 @@ StartupNotify=true
         self.stats_labels = {}
         stats = [
             ('📊 Total projets', 'total'),
-            ('📦 Taille totale', 'total_size'),
-            ('📄 Fichiers', 'total_files')
+            ('Taille totale', 'total_size'),
+            ('Fichiers', 'total_files')
         ]
         
         for i, (label, key) in enumerate(stats):
@@ -1249,28 +1268,59 @@ StartupNotify=true
         scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=self.projects_tree.yview)
         self.projects_tree.configure(yscrollcommand=scrollbar.set)
         
-        self.projects_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.projects_tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y, in_=main_frame) # Correction placement scrollbar
         
-        # Boutons
-        btn_frame = tk.Frame(main_frame)
+        # Boutons Exports
+        btn_frame = tk.Frame(main_frame, bg=self.colors['bg_secondary'])
         btn_frame.pack(fill=tk.X, pady=10)
         
-        tk.Button(btn_frame, text="📂 Ouvrir", command=self.open_selected_project,
-                 bg=self.colors['accent'], fg='white', padx=20).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Ouvrir Export", command=self.open_selected_project,
+                 bg=self.colors['accent'], fg='white', padx=15).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(btn_frame, text="🗑️ Supprimer", command=self.delete_selected_project,
-                 bg=self.colors['error'], fg='white', padx=20).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Supprimer", command=self.delete_selected_project,
+                 bg=self.colors['error'], fg='white', padx=15).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(btn_frame, text="🔄 Actualiser", command=self.refresh_projects_list,
-                 bg=self.colors['bg_tertiary'], padx=20).pack(side=tk.LEFT, padx=5)
+        # --- Section HISTORIQUE IA ---
+        tk.Label(main_frame, text="Assistant IA : Historique des changements et Sauvegardes", font=self.fonts['title'],
+                 bg=self.colors['bg_secondary'], fg=self.colors['accent']).pack(anchor=tk.W, pady=(20, 5))
         
-        self.refresh_projects_list()
+        cols_ia = ('Date', 'Projet', 'Fichiers', 'Mode', 'Taille', 'Chemin Backup')
+        self.ia_tree = ttk.Treeview(main_frame, columns=cols_ia, show='headings', height=8)
+        
+        for col in cols_ia:
+            self.ia_tree.heading(col, text=col)
+            if col == 'Chemin Backup': self.ia_tree.column(col, width=300)
+            elif col == 'Date': self.ia_tree.column(col, width=130)
+            else: self.ia_tree.column(col, width=100)
+            
+        scrollbar_ia = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=self.ia_tree.yview)
+        self.ia_tree.configure(yscrollcommand=scrollbar_ia.set)
+        
+        self.ia_tree.pack(fill=tk.BOTH, expand=True)
+        scrollbar_ia.pack(side=tk.RIGHT, fill=tk.Y, in_=main_frame)
+
+        btn_ia_frame = tk.Frame(main_frame, bg=self.colors['bg_secondary'])
+        btn_ia_frame.pack(fill=tk.X, pady=10)
+        
+        tk.Button(btn_ia_frame, text="Ouvrir Backup", command=self.open_selected_ia_backup,
+                 bg=self.colors['accent'], fg='white', padx=15).pack(side=tk.LEFT, padx=5)
+                 
+        tk.Button(btn_ia_frame, text="Supprimer", command=self.delete_selected_ia_history,
+                 bg=self.colors['error'], fg='white', padx=15).pack(side=tk.LEFT, padx=5)
+                 
+        tk.Button(btn_ia_frame, text="Tout Supprimer", command=self.clear_ia_history,
+                 bg=self.colors['bg_dark'], fg='white', padx=15).pack(side=tk.LEFT, padx=15)
+        
+        tk.Button(btn_ia_frame, text="Actualiser tout", command=self.refresh_all_history,
+                 bg=self.colors['bg_tertiary'], padx=15).pack(side=tk.RIGHT, padx=5)
+        
+        self.refresh_all_history()
     
     def setup_config_tab(self):
         """Onglet configuration"""
         tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="⚙️ Config")
+        self.notebook.add(tab, text="Config")
         
         main_frame = tk.Frame(tab, bg=self.colors['bg_secondary'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -1285,8 +1335,12 @@ StartupNotify=true
         tk.Entry(ext_frame, textvariable=self.extensions_var, width=60).pack(fill=tk.X, pady=5)
         
         tk.Label(ext_frame, 
-                text="Exemple: .txt, .py, .js, .html, .css, .json, .xml, .md",
-                font=self.fonts['small'], fg='gray').pack(anchor=tk.W)
+                text="Détection intelligente : Le code (.py, .js, .html...) est inclus automatiquement.\n"
+                     "Pourquoi garder cette liste ?\n"
+                     "   - Vitesse : Les extensions ici sont traitées en priorité.\n"
+                     "   - Garantie : Assure l'inclusion de formats spéciaux ou fichiers ambigus.\n"
+                     "   - Contrôle : Ajoute ici tout fichier texte que l'IA pourrait rater.",
+                font=self.fonts['small'], fg='#3498db', justify=tk.LEFT).pack(anchor=tk.W, pady=5)
         
         # Patterns d'exclusion
         excl_frame = tk.LabelFrame(main_frame, text="Patterns d'exclusion", padx=10, pady=10)
@@ -1309,7 +1363,7 @@ StartupNotify=true
         self.exclude_text.insert('1.0', '\n'.join(self.config['exclude_patterns']))
         
         # Bouton sauvegarde
-        tk.Button(main_frame, text="💾 Sauvegarder la configuration", 
+        tk.Button(main_frame, text="Sauvegarder la configuration", 
                  command=self.save_config_from_ui,
                  bg=self.colors['success'], fg='white',
                  font=self.fonts['title'], padx=30, pady=5).pack(pady=10)
@@ -1358,14 +1412,14 @@ StartupNotify=true
                             self.gitignore_listbox.insert(tk.END, line)
                 
                 if self.gitignore_listbox.size() > 0:
-                    self.log(f"📋 {self.gitignore_listbox.size()} règles .gitignore chargées", "info")
+                    self.log(f"{self.gitignore_listbox.size()} règles .gitignore chargées", "info")
                 else:
-                    self.log("📋 Fichier .gitignore vide", "info")
+                    self.log("Fichier .gitignore vide", "info")
                     
             except Exception as e:
-                self.log(f"❌ Erreur lecture .gitignore: {e}", "error")
+                self.log(f"Erreur lecture .gitignore: {e}", "error")
         else:
-            self.log("ℹ️ Aucun fichier .gitignore trouvé", "info")
+            self.log("Aucun fichier .gitignore trouvé", "info")
         
         overrides = self.gitignore_overrides.get(folder_path, [])
         for override in overrides:
@@ -1377,7 +1431,7 @@ StartupNotify=true
         if selection:
             rule = self.gitignore_listbox.get(selection[0])
             self.override_listbox.insert(tk.END, rule)
-            self.log(f"✅ Exception ajoutée: {rule}", "success")
+            self.log(f"Exception ajoutée: {rule}", "success")
     
     def remove_override(self):
         """Retire une règle des exceptions"""
@@ -1420,7 +1474,7 @@ StartupNotify=true
         if not folder or not os.path.exists(folder):
             return
         
-        self.status_label.config(text="🔄 Analyse en cours...")
+        self.status_label.config(text="Analyse en cours...")
         self.root.update()
         
         try:
@@ -1441,10 +1495,10 @@ StartupNotify=true
             self.info_labels['Dossiers'].config(text=str(dir_count))
             
             self.log(f"📊 Analyse: {file_count} fichiers, {self.format_size(total_size)}", "success")
-            self.status_label.config(text="✅ Analyse terminée")
+            self.status_label.config(text="Analyse terminée")
             
         except Exception as e:
-            self.log(f"❌ Erreur: {str(e)}", "error")
+            self.log(f"Erreur: {str(e)}", "error")
     
     def format_size(self, size):
         """Formate la taille"""
@@ -1470,7 +1524,7 @@ StartupNotify=true
         self.progress['value'] = 0
         self.export_btn.config(state='disabled')
         self.cancel_btn.config(state='normal')
-        self.status_label.config(text="🔄 Export en cours...")
+        self.status_label.config(text="Export en cours...")
         
         thread = threading.Thread(target=self.export_structure)
         thread.daemon = True
@@ -1510,7 +1564,7 @@ StartupNotify=true
             for root, dirs, files in os.walk(folder):
                 total_files += len(files)
             
-            self.root.after(0, lambda: self.log(f"📦 Export de {total_files} fichiers...", "info"))
+            self.root.after(0, lambda: self.log(f"Export de {total_files} fichiers...", "info"))
             
             with open(txt_file, 'w', encoding='utf-8') as f:
                 f.write(f"PROJECT: {project_name}\n")
@@ -1535,7 +1589,7 @@ StartupNotify=true
                         
                         file_size = os.path.getsize(file_path)
                         if current_size + file_size > max_size:
-                            self.root.after(0, lambda: self.log("⚠️ Limite de taille atteinte", "warning"))
+                            self.root.after(0, lambda: self.log("Limite de taille atteinte", "warning"))
                             break
                         
                         rel_path = os.path.relpath(file_path, folder)
@@ -1561,7 +1615,7 @@ StartupNotify=true
                             progress = (processed_files / total_files) * 100
                             self.root.after(0, lambda p=progress: self.progress.config(value=p))
                             self.root.after(0, lambda: self.status_label.config(
-                                text=f"🔄 {processed_files}/{total_files} fichiers"))
+                                text=f"{processed_files}/{total_files} fichiers"))
             
             if self.cancel_export:
                 self.root.after(0, self.export_cancelled)
@@ -1587,7 +1641,7 @@ StartupNotify=true
             self.root.after(0, lambda: self.export_complete(export_folder, processed_files))
             
         except Exception as e:
-            self.root.after(0, lambda: self.log(f"❌ Erreur: {str(e)}", "error"))
+            self.root.after(0, lambda: self.log(f"Erreur: {str(e)}", "error"))
         finally:
             self.is_processing = False
             self.root.after(0, lambda: self.export_btn.config(state='normal'))
@@ -1615,9 +1669,43 @@ StartupNotify=true
         return True
     
     def is_text_file(self, file_path):
-        """Vérifie si c'est un fichier texte"""
-        ext = os.path.splitext(file_path)[1].lower()
-        return ext in self.config['text_extensions']
+        """Vérifie si c'est un fichier texte (via extension, nom connu ou heuristique binaire)"""
+        try:
+            # 1. Vérification par extension (pour la performance)
+            ext = os.path.splitext(file_path)[1].lower()
+            if hasattr(self, 'config') and ext in self.config.get('text_extensions', []):
+                return True
+                
+            # 2. Noms de fichiers connus sans extension (ou avec extension mais souvent texte)
+            known_text = {
+                'makefile', 'dockerfile', 'license', 'readme', '.env', 
+                '.gitignore', '.gitattributes', '.editorconfig', 'procfile'
+            }
+            if os.path.basename(file_path).lower() in known_text:
+                return True
+
+            # 3. Heuristique binaire (vérification d'octets nuls)
+            # On lit les 1024 premiers octets pour voir si c'est du texte
+            if os.path.getsize(file_path) == 0:
+                return True # Fichier vide = texte par défaut
+                
+            with open(file_path, 'rb') as f:
+                chunk = f.read(1024)
+                # Un fichier texte ne devrait pas contenir d'octet nul \0 
+                # (sauf cas très rares UTF-16, mais ici on vise le code UTF-8)
+                if b'\0' in chunk:
+                    return False
+                
+                # Optionnel : vérifier si c'est de l'UTF-8 valide (plus lent mais sûr)
+                try:
+                    chunk.decode('utf-8')
+                    return True
+                except UnicodeDecodeError:
+                    # Si on ne peut pas décoder l'UTF-8 et qu'il y a beaucoup de octets hors ASCII 
+                    # c'est probablement du binaire
+                    return False
+        except Exception:
+            return False
     
     def create_zip(self, folder, txt_file):
         """Crée une archive ZIP"""
@@ -1625,14 +1713,14 @@ StartupNotify=true
             zip_name = txt_file.replace('.txt', '.zip')
             with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 zipf.write(txt_file, os.path.basename(txt_file))
-            self.log("📦 Archive ZIP créée", "success")
+            self.log("Archive ZIP créée", "success")
         except Exception as e:
-            self.log(f"❌ Erreur ZIP: {str(e)}", "error")
+            self.log(f"Erreur ZIP: {str(e)}", "error")
     
     def export_complete(self, folder, files):
         """Fin de l'export"""
-        self.log(f"✅ Export terminé: {files} fichiers", "success")
-        self.status_label.config(text="✅ Terminé")
+        self.log(f"Export terminé: {files} fichiers", "success")
+        self.status_label.config(text="Terminé")
         self.progress.config(value=100)
         
         if messagebox.askyesno("Succès", f"Export terminé!\n{files} fichiers exportés.\nOuvrir le dossier?"):
@@ -1648,7 +1736,7 @@ StartupNotify=true
             else:
                 subprocess.run(["xdg-open", path])
         except Exception as e:
-            self.log(f"❌ Erreur ouverture: {str(e)}", "error")
+            self.log(f"Erreur ouverture: {str(e)}", "error")
     
     def refresh_projects_list(self):
         """Rafraîchit la liste des projets"""
@@ -1703,9 +1791,9 @@ StartupNotify=true
                 self.projects = [p for p in self.projects if p['path'] != path]
                 self.save_projects()
                 self.refresh_projects_list()
-                self.log("✅ Export supprimé", "success")
+                self.log("Export supprimé", "success")
             except Exception as e:
-                self.log(f"❌ Erreur: {str(e)}", "error")
+                self.log(f"Erreur: {str(e)}", "error")
     
     def save_config_from_ui(self):
         """Sauvegarde la configuration"""
@@ -1721,9 +1809,122 @@ StartupNotify=true
         self.config['unlimited_size'] = self.unlimited_var.get()
         
         self.save_config()
-        self.log("✅ Configuration sauvegardée", "success")
+        self.log("Configuration sauvegardée", "success")
         messagebox.showinfo("Succès", "Configuration sauvegardée")
     
+    def refresh_all_history(self):
+        """Rafraîchit les deux listes d'historique"""
+        self.refresh_projects_list()
+        self.refresh_ia_history_list()
+
+    def update_global_stats(self):
+        """Calcule et affiche les statistiques globales de stockage dans l'onglet principal"""
+        if not hasattr(self, 'info_labels'): return
+        
+        # 1. Taille des exports (depuis la liste projects)
+        total_exports = sum(p.get('size', 0) for p in self.projects)
+        
+        # 2. Taille des sauvegardes IA (réelle sur le disque)
+        total_backups = 0
+        for h in self.ia_history:
+            path = h.get('backup')
+            if path and os.path.exists(path):
+                total_backups += self.get_dir_size(path)
+        
+        grand_total = total_exports + total_backups
+        
+        # Formater pour l'affichage
+        fmt = humanize.naturalsize if humanize else (lambda s: f"{s//1048576} Mo")
+        
+        if 'Taille' in self.info_labels: self.info_labels['Taille'].config(text=fmt(total_exports))
+        if 'Taille_IA' in self.info_labels: self.info_labels['Taille_IA'].config(text=fmt(total_backups))
+        if 'Total_Espace' in self.info_labels: self.info_labels['Total_Espace'].config(text=fmt(grand_total), fg=self.colors['accent'])
+
+    def get_dir_size(self, path):
+        """Calcule la taille réelle d'un dossier"""
+        total = 0
+        if not os.path.exists(path): return 0
+        try:
+            for entry in os.scandir(path):
+                if entry.is_file(): total += entry.stat().st_size
+                elif entry.is_dir(): total += self.get_dir_size(entry.path)
+        except: pass
+        return total
+
+    def refresh_ia_history_list(self):
+        """Rafraîchit la liste de l'IA Assistant avec les tailles réelles"""
+        if not hasattr(self, 'ia_tree'): return
+        
+        for item in self.ia_tree.get_children():
+            self.ia_tree.delete(item)
+            
+        for h in reversed(self.ia_history):
+            path = h.get('backup', '-')
+            size_str = "-"
+            if os.path.exists(path):
+                size = self.get_dir_size(path)
+                size_str = humanize.naturalsize(size) if humanize else f"{size//1024} Ko"
+                
+            self.ia_tree.insert('', tk.END, values=(
+                h.get('date', '-'),
+                h.get('project', '-'),
+                h.get('files', 0),
+                h.get('mode', 'session'),
+                size_str,
+                path
+            ))
+        self.update_global_stats()
+
+    def delete_selected_ia_history(self):
+        """Supprime une entrée d'historique et ses fichiers de backup"""
+        selected = self.ia_tree.selection()
+        if not selected: return
+        
+        if not messagebox.askyesno("Confirmation", "Supprimer cet historique et son dossier de backup ?"):
+            return
+            
+        values = self.ia_tree.item(selected[0])['values']
+        path = values[5]
+        date = values[0]
+        
+        try:
+            if os.path.exists(path): shutil.rmtree(path)
+            self.ia_history = [h for h in self.ia_history if h.get('date') != date]
+            self.save_ia_history()
+            self.refresh_ia_history_list()
+            self.log("Historique IA supprimé", "success")
+        except Exception as e:
+            self.log(f"Erreur suppression IA: {e}", "error")
+
+    def clear_ia_history(self):
+        """Vite tout l'historique IA et supprime TOUS les dossiers de backup de TOUS les projets"""
+        if not messagebox.askyesno("Attention", "Voulez-vous supprimer TOUT l'historique et TOUS les backups IA de tous les projets ?"):
+            return
+            
+        # On parcourt l'historique pour supprimer les dossiers physiques
+        for h in self.ia_history:
+            path = h.get('backup')
+            if path and os.path.exists(path):
+                try: shutil.rmtree(path)
+                except: pass
+        
+        self.ia_history = []
+        self.save_ia_history()
+        self.refresh_ia_history_list()
+        self.log("Historique IA vidé", "success")
+
+    def open_selected_ia_backup(self):
+        """Ouvre le dossier de backup sélectionné"""
+        selected = self.ia_tree.selection()
+        if not selected: return
+        
+        values = self.ia_tree.item(selected[0])['values']
+        path = values[4] # Chemin backup
+        if os.path.exists(path):
+            self.open_folder(path)
+        else:
+            messagebox.showwarning("Dossier introuvable", f"Le dossier de backup n'existe plus :\n{path}")
+
     def clear_log(self):
         """Efface le journal"""
         self.log_text.delete(1.0, tk.END)
@@ -1737,7 +1938,7 @@ StartupNotify=true
                 f.write(self.log_text.get(1.0, tk.END))
             self.log(f"📝 Journal sauvegardé: {os.path.basename(log_file)}", "success")
         except Exception as e:
-            self.log(f"❌ Erreur: {str(e)}", "error")
+            self.log(f"Erreur: {str(e)}", "error")
     
     def process_log_queue(self):
         """Traite la file d'attente des logs"""
@@ -1753,13 +1954,13 @@ StartupNotify=true
     def setup_ia_tab(self):
         """Onglet Assistant IA (v3.0)"""
         tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="🤖 Assistant IA")
+        self.notebook.add(tab, text="Assistant IA")
         
         main_frame = tk.Frame(tab, bg=self.colors['bg_primary'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         # Section 1: Désassembleur (Unpacker)
-        unpacker_frame = tk.LabelFrame(main_frame, text="📦 Désassembleur (Unpacker)", 
+        unpacker_frame = tk.LabelFrame(main_frame, text="Desassembleur (Unpacker)", 
                                      bg=self.colors['bg_secondary'], font=self.fonts['title'], 
                                      padx=15, pady=15)
         unpacker_frame.pack(fill=tk.X, pady=(0, 20))
@@ -1770,12 +1971,12 @@ StartupNotify=true
         up_btn_frame = tk.Frame(unpacker_frame, bg=self.colors['bg_secondary'])
         up_btn_frame.pack(fill=tk.X, pady=10)
         
-        tk.Button(up_btn_frame, text="📂 Sélectionner un Export .txt", 
+        tk.Button(up_btn_frame, text="Parcourir Export .txt", 
                   command=self.run_unpacker,
                   bg=self.colors['accent'], fg='white', padx=15).pack(side=tk.LEFT)
         
         # Section 2: Assistant IA (Appliquer du code)
-        patcher_frame = tk.LabelFrame(main_frame, text="🤖 Assistant IA (Paster GPT/Claude)", 
+        patcher_frame = tk.LabelFrame(main_frame, text="Assistant IA (Paster GPT/Claude)", 
                                     bg=self.colors['bg_secondary'], font=self.fonts['title'], 
                                     padx=15, pady=15)
         patcher_frame.pack(fill=tk.BOTH, expand=True)
@@ -1787,7 +1988,7 @@ StartupNotify=true
         target_frame = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
         target_frame.pack(fill=tk.X, pady=(15, 5))
         
-        tk.Label(target_frame, text="📁 Projet Cible :", 
+        tk.Label(target_frame, text="Projet Cible :", 
                  bg=self.colors['bg_secondary'], font=self.fonts['title']).pack(side=tk.LEFT)
         
         self.ia_target_var = tk.StringVar(value=self.path_var.get() or os.getcwd())
@@ -1797,7 +1998,7 @@ StartupNotify=true
         ia_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=15, ipady=10)
         
         # Bouton intelligent (Recherche + Parcourir)
-        tk.Button(target_frame, text="🔍 Trouver / Parcourir", 
+        tk.Button(target_frame, text="Trouver / Parcourir", 
                   command=self.browse_ia_target,
                   bg=self.colors['accent'], fg='white', 
                   font=self.fonts['normal'], padx=15, pady=2).pack(side=tk.LEFT)
@@ -1806,7 +2007,7 @@ StartupNotify=true
         quick_pick_frame = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
         quick_pick_frame.pack(fill=tk.X, pady=(0, 15))
         
-        tk.Label(quick_pick_frame, text="⚡ Sélection rapide :", 
+        tk.Label(quick_pick_frame, text="Sélection rapide :", 
                  bg=self.colors['bg_secondary'], fg=self.colors['text_secondary'], font=('', 9)).pack(side=tk.LEFT)
         
         self.ia_recent_combo = ttk.Combobox(quick_pick_frame, state="readonly", width=80, height=25)
@@ -1814,62 +2015,139 @@ StartupNotify=true
         self.ia_recent_combo.bind("<<ComboboxSelected>>", self.on_ia_recent_selected)
         self.update_ia_recent_combo()
         
+        # Options de backup (Choix utilisateur)
+        backup_opt_frame = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
+        backup_opt_frame.pack(fill=tk.X, pady=(5, 15))
+        
+        tk.Label(backup_opt_frame, text="Stratégie de Backup :", bg=self.colors['bg_secondary'], font=('', 9, 'bold')).pack(side=tk.LEFT)
+        
+        self.ia_backup_var = tk.StringVar(value=self.config.get('ia_backup_mode', 'session'))
+        def _save_mode(): 
+            self.config['ia_backup_mode'] = self.ia_backup_var.get()
+            self.save_config()
+            
+        tk.Radiobutton(backup_opt_frame, text="Par Session (Horodaté)", variable=self.ia_backup_var, 
+                      value='session', bg=self.colors['bg_secondary'], command=_save_mode).pack(side=tk.LEFT, padx=10)
+        tk.Radiobutton(backup_opt_frame, text="Dossier Unique (Écraser)", variable=self.ia_backup_var, 
+                      value='unique', bg=self.colors['bg_secondary'], command=_save_mode).pack(side=tk.LEFT)
+        
         header_bar = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
         header_bar.pack(fill=tk.X, pady=(10, 5))
         
-        tk.Label(header_bar, text="🤖 Collez ici la réponse de l'IA (nom du fichier + bloc de code):", 
+        tk.Label(header_bar, text="Collez ici la réponse de l'IA (nom du fichier + bloc de code):", 
                 bg=self.colors['bg_secondary'], font=('Segoe UI', 9, 'italic')).pack(side=tk.LEFT)
         
         # Boutons d'action rapide
-        tk.Button(header_bar, text="📋 Coller", command=lambda: self.ia_code_input.insert(tk.END, self.root.clipboard_get()),
+        tk.Button(header_bar, text="Coller", command=lambda: self.ia_code_input.insert(tk.END, self.root.clipboard_get()),
                   bg=self.colors['bg_tertiary'], font=('Segoe UI', 8)).pack(side=tk.RIGHT, padx=5)
-        tk.Button(header_bar, text="🧹 Vider", command=lambda: self.ia_code_input.delete("1.0", tk.END),
+        tk.Button(header_bar, text="Vider", command=lambda: self.ia_code_input.delete("1.0", tk.END),
                   bg=self.colors['bg_tertiary'], font=('Segoe UI', 8)).pack(side=tk.RIGHT)
         
         # Layout horizontal pour Input + Liste Détectée
         editor_panel = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
         editor_panel.pack(fill=tk.BOTH, expand=True, pady=10)
         
-        # Gauche: L'éditeur
+        # Gauche: L'éditeur avec Scrollbar
         editor_left = tk.Frame(editor_panel, bg=self.colors['bg_secondary'])
         editor_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
-        self.ia_code_input = tk.Text(editor_left, height=18, font=('Courier New', 10),
-                                    relief=tk.FLAT, highlightthickness=1, highlightbackground=self.colors['bg_tertiary'])
+        ia_scroll = tk.Scrollbar(editor_left)
+        ia_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.ia_code_input = tk.Text(editor_left, height=18, font=self.fonts['mono'],
+                                    yscrollcommand=ia_scroll.set,
+                                    wrap=tk.NONE, # Empêche le retour à la ligne auto pour mieux voir le code
+                                    highlightthickness=1, highlightbackground=self.colors['bg_tertiary'])
         self.ia_code_input.pack(fill=tk.BOTH, expand=True)
+        ia_scroll.config(command=self.ia_code_input.yview)
+        
+        # Ajout d'une scrollbar horizontale aussi pour le code large
+        ia_scroll_h = tk.Scrollbar(editor_left, orient=tk.HORIZONTAL, command=self.ia_code_input.xview)
+        ia_scroll_h.pack(side=tk.BOTTOM, fill=tk.X)
+        self.ia_code_input.config(xscrollcommand=ia_scroll_h.set)
+        
         self.ia_code_input.bind("<KeyRelease>", lambda e: self.detect_files_in_ia_input())
         
         # Droite: Liste des fichiers détectés
-        detection_frame = tk.LabelFrame(editor_panel, text="🔍 Fichiers Détectés", 
+        detection_frame = tk.LabelFrame(editor_panel, text="Fichiers Détectés", 
                                       bg=self.colors['bg_secondary'], font=('', 8, 'bold'))
         detection_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
         
-        self.detected_files_list = tk.Listbox(detection_frame, width=30, bg='white', font=('', 9))
+        self.detected_files_list = tk.Listbox(detection_frame, width=30, bg='white', font=('', 9), 
+                                              selectmode=tk.MULTIPLE,
+                                              highlightcolor=self.colors['accent'],
+                                              selectbackground=self.colors['accent_light'])
         self.detected_files_list.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        btn_action = tk.Button(patcher_frame, text="⚡ Appliquer les changements (avec Backups)", 
-                  command=self.apply_ia_patch,
-                  bg=self.colors['success'], fg='white', font=self.fonts['title'], padx=25, pady=8)
-        btn_action.pack()
+        tk.Button(detection_frame, text="Tout Sélectionner", command=lambda: self.detected_files_list.select_set(0, tk.END),
+                 bg=self.colors['bg_tertiary'], font=('', 8)).pack(fill=tk.X, padx=5, pady=(0, 5))
+        
+        # Actions principales
+        actions_frame = tk.Frame(patcher_frame, bg=self.colors['bg_secondary'])
+        actions_frame.pack(fill=tk.X, pady=10)
+        
+        tk.Button(actions_frame, text="APPLIQUER (Nouveau Backup)", 
+                  command=lambda: self.apply_ia_patch(mode='session'),
+                  bg=self.colors['success'], fg='white', font=self.fonts['title'], 
+                  padx=20, pady=15).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+                  
+        tk.Button(actions_frame, text="APPLIQUER (Écraser Unique)", 
+                  command=lambda: self.apply_ia_patch(mode='unique'),
+                  bg=self.colors['accent'], fg='white', font=self.fonts['title'], 
+                  padx=20, pady=15).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
         
         # Astuce
-        tk.Label(patcher_frame, text="💡 Astuce: L'IA détecte automatiquement les blocs comme ```python / ```css etc.", 
+        tk.Label(patcher_frame, text="Astuce: L'IA détecte automatiquement les blocs comme ```python / ```css etc.", 
                 bg=self.colors['bg_secondary'], fg='gray', font=('', 8)).pack(pady=5)
+
+    def parse_ia_content(self, text):
+        """Exploration robuste : Trouve les blocs de code et cherche le nom du fichier au-dessus"""
+        matches = []
+        # 1. On isole tous les blocs de code Markdown
+        code_blocks = list(re.finditer(r'```(?:[a-zA-Z]*)\n(.*?)\n\s*```', text, re.DOTALL))
+        
+        # Motif de fichier : autorise lettres, chiffres, points, slashs, tirets, underscores + extension
+        file_pattern = r'[\w\./\\\\_-]+\.[a-z0-9]+'
+        
+        for block in code_blocks:
+            content = block.group(1)
+            start_pos = block.start()
+            
+            # 2. On analyse ce qui précède le bloc (environ 5 lignes / 400 caractères)
+            look_back = text[max(0, start_pos-400):start_pos]
+            lines = look_back.splitlines()
+            
+            # On cherche de bas en haut (le plus proche du bloc)
+            found_file = None
+            for line in reversed(lines[-6:]): # 6 dernières lignes avant le bloc
+                # On cherche tout ce qui ressemble à un nom de fichier
+                candidates = re.findall(file_pattern, line)
+                if candidates:
+                    # On prend le dernier candidat de la ligne (souvent le chemin complet)
+                    found_file = candidates[-1]
+                    break
+            
+            if found_file:
+                matches.append((found_file, content))
+        return matches
 
     def detect_files_in_ia_input(self):
         """Détecte les fichiers dans l'input IA et met à jour la liste visuelle"""
         text = self.ia_code_input.get("1.0", tk.END).strip()
         self.detected_files_list.delete(0, tk.END)
         
-        pattern = r'(?:[#\*\[]+)?\s*([\w\./\\\\_-]+\.[a-z0-9]+)\s*[#\*\]]*\n\s*```[a-zA-Z]*\n'
-        matches = re.findall(pattern, text)
+        matches = self.parse_ia_content(text)
         
         if not matches:
-            self.detected_files_list.insert(tk.END, "Aucun fichier détecté...")
+            self.detected_files_list.insert(tk.END, "Aucun bloc détecté...")
             return
             
-        for f in list(dict.fromkeys(matches)): # Unique files
-            self.detected_files_list.insert(tk.END, f"📄 {f}")
+        # Dédoublonnage pour la liste visuelle
+        seen = []
+        for f, _ in matches:
+            if f not in seen:
+                self.detected_files_list.insert(tk.END, f"{f}")
+                seen.append(f)
 
     def update_ia_recent_combo(self):
         """Met à jour la liste des projets récents dans l'onglet IA"""
@@ -1910,12 +2188,12 @@ StartupNotify=true
             if matches:
                 if len(matches) == 1:
                     self.ia_target_var.set(matches[0])
-                    self.log(f"✅ Dossier trouvé via recherche : {matches[0]}", "success")
+                    self.log(f"Dossier trouvé via recherche : {matches[0]}", "success")
                     return
                 else:
                     self.log(f"❓ {len(matches)} dossiers trouvés pour '{current}'. Choisissez-en un.", "warning")
             else:
-                self.log(f"❌ Aucun dossier trouvé pour '{current}'.", "error")
+                self.log(f"Aucun dossier trouvé pour '{current}'.", "error")
 
         # Fallback sur le sélecteur classique (en dernier recours)
         folder = ask_modern_directory(self.root, title="Choisir le dossier cible",
@@ -1939,6 +2217,14 @@ StartupNotify=true
             self.log(f"🏗️ Reconstruction démarrée dans: {dest_folder}", "info")
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
+            
+            # Vérifier si c'est un export fusionné (Destructif)
+            if "MERGE_LINES: YES" in content[:500]:
+                if not messagebox.askyesno("Avertissement", 
+                    "Cet export a été réalisé avec l'option 'Fusionner sur une ligne' active.\n\n"
+                    "La reconstruction créera des fichiers sans sauts de ligne (formatage perdu).\n"
+                    "Voulez-vous quand même continuer ?"):
+                    return
             
             # Pattern pour trouver les fichiers [chemin/du/fichier.ext]
             # On cherche le début d'un fichier marqué par [chemin]
@@ -1964,17 +2250,21 @@ StartupNotify=true
                 file_count += 1
             
             messagebox.showinfo("Succès", f"🏗️ Projet reconstruit avec succès !\n{file_count} fichiers créés dans {dest_folder}")
-            self.log(f"✅ Reconstruction terminée: {file_count} fichiers.", "success")
+            self.log(f"Reconstruction terminée: {file_count} fichiers.", "success")
             self.open_folder(dest_folder)
             
         except Exception as e:
             messagebox.showerror("Erreur Unpacker", str(e))
-            self.log(f"❌ Erreur Unpacker: {e}", "error")
+            self.log(f"Erreur Unpacker: {e}", "error")
 
-    def apply_ia_patch(self):
+    def apply_ia_patch(self, mode=None):
         """Applique les changements suggérés par l'IA"""
         text = self.ia_code_input.get("1.0", tk.END).strip()
         target_dir = self.ia_target_var.get().strip()
+        
+        # Si le mode n'est pas passé en argument, on prend celui des boutons radio (config)
+        if not mode:
+            mode = self.ia_backup_var.get()
         
         if not text:
             messagebox.showwarning("Assistant IA", "Veuillez d'abord coller la réponse de l'IA.")
@@ -1984,28 +2274,57 @@ StartupNotify=true
             messagebox.showerror("Assistant IA", f"Le dossier cible est invalide :\n{target_dir}")
             return
 
-        # Parsing amélioré pour supporter plus de styles (Markdown, headings, etc.)
-        # Supporte : ### file.py ou **file.py** ou [file.py]
-        pattern = r'(?:[#\*\[]+)?\s*([\w\./\\\\_-]+\.[a-z0-9]+)\s*[#\*\]]*\n\s*```[a-zA-Z]*\n(.*?)\n\s*```'
-        matches = re.findall(pattern, text, re.DOTALL)
+        # Utilisation de la nouvelle fonction de parsing robuste
+        matches = self.parse_ia_content(text)
         
         if not matches:
             messagebox.showwarning("Assistant IA", "Aucun fichier ou bloc de code (```) détecté dans le texte.")
             return
 
+        # Dédoublonnage : on garde le dernier bloc de code pour chaque chemin de fichier
+        unique_matches = {}
+        for rel_path, content in matches:
+            # Nettoyage du chemin pour servir de clé
+            clean_key = re.sub(r'[^\w\.\-/]', '', rel_path).strip('/')
+            unique_matches[clean_key] = (rel_path, content)
+
+        # Filtrage par sélection dans la liste
+        selected_indices = self.detected_files_list.curselection()
+        if selected_indices:
+            selected_names = [self.detected_files_list.get(i).replace("", "").strip() for i in selected_indices]
+            filtered_matches = {}
+            for clean_path, data in unique_matches.items():
+                # Comparaison plus stricte : égalité exacte ou fin de chemin (ex: style.css matches css/style.css)
+                match_found = False
+                for name in selected_names:
+                    if name == clean_path or clean_path.endswith('/' + name) or name.endswith('/' + clean_path):
+                        match_found = True
+                        break
+                if match_found:
+                    filtered_matches[clean_path] = data
+            unique_matches = filtered_matches
+
+        if not unique_matches:
+            messagebox.showinfo("Assistant IA", "Précision : Aucun des fichiers sélectionnés n'a été trouvé avec certitude dans le texte de l'IA.")
+            return
+
+        final_matches = list(unique_matches.values())
+
         # Confirmation
-        msg = f"L'IA a détecté {len(matches)} fichiers à modifier.\n\nVoulez-vous les appliquer dans :\n{target_dir} ?"
+        msg = f"L'IA va modifier {len(final_matches)} fichiers.\n\nVoulez-vous continuer dans :\n{target_dir} ?"
         if not messagebox.askyesno("Confirmer les changements", msg):
             return
 
-        # Création du dossier de backup
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_root = os.path.join(target_dir, "backups_blx", timestamp)
+        # Détermination du dossier de backup
+        if mode == 'unique':
+            backup_root = os.path.join(target_dir, "backups_blx", "latest")
+        else:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_root = os.path.join(target_dir, "backups_blx", timestamp)
         
         try:
             modified_count = 0
-            for rel_path, content in matches:
-                # Nettoyage du chemin
+            for rel_path, content in final_matches:
                 rel_path = re.sub(r'[^\w\.\-/]', '', rel_path).strip('/')
                 full_path = os.path.join(target_dir, rel_path)
                 
@@ -2025,16 +2344,32 @@ StartupNotify=true
                 
                 self.log(f"Assistant IA: {rel_path} ({status})", "success")
                 modified_count += 1
+            
+            # Enregistrer dans l'historique
+            history_entry = {
+                'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'project': os.path.basename(target_dir),
+                'path': target_dir,
+                'files': modified_count,
+                'backup': backup_root,
+                'mode': mode
+            }
+            self.ia_history.append(history_entry)
+            self.save_ia_history()
+            
+            # Rafraîchir l'UI de l'historique si elle existe
+            if hasattr(self, 'refresh_ia_history_list'):
+                self.refresh_ia_history_list()
                 
             final_msg = f"🎉 Succès ! {modified_count} fichiers traités.\n\n"
             if os.path.exists(backup_root):
-                final_msg += f"📍 Backups créés dans :\n{backup_root}"
+                final_msg += f"📍 Backups disponibles dans :\n{backup_root}"
             
             messagebox.showinfo("Assistant IA", final_msg)
-            self.ia_code_input.delete("1.0", tk.END) # Nettoyer après succès
+            self.ia_code_input.delete("1.0", tk.END)
             
         except Exception as e:
-            messagebox.showerror("Assistant IA", f"Erreur lors de l'application :\n{e}")
+            messagebox.showerror("Erreur Assistant IA", str(e))
             self.log(f"Erreur Assistant IA: {e}", "error")
 
     def log(self, message, level='info'):
@@ -2054,12 +2389,12 @@ StartupNotify=true
 Application professionnelle d'export et d'analyse de projets
 
 Fonctionnalités :
-✅ Export avec fusion sur une ligne
-✅ Gestion .gitignore avec exceptions
-✅ Limite de taille configurable
-✅ Annulation des exports
-✅ Historique des projets
-✅ Interface moderne
+Export avec fusion sur une ligne
+Gestion .gitignore avec exceptions
+Limite de taille configurable
+Annulation des exports
+Historique des projets
+Interface moderne
 
 Créé pour répondre à tous vos besoins !"""
         
@@ -2089,11 +2424,11 @@ class CLIApp:
         
     def load_config(self):
         self.config = {
-            'text_extensions': ['.txt', '.py', '.js', '.html', '.css', '.json', '.xml', '.md', '.sql', '.go', '.rs', '.c', '.cpp', '.h', '.php'],
+            'text_extensions': ['.txt', '.md', '.json', '.yaml', '.sql', '.log'],
             'exclude_patterns': ['__pycache__', '.git', '.vscode', 'node_modules', '*.pyc', '.DS_Store', 'venv', 'env', '.env'],
             'max_size_mb': 100,
             'unlimited_size': False,
-            'merge_lines': True,
+            'merge_lines': False,
             'compress': False,
             'recent_projects': []
         }
@@ -2155,10 +2490,10 @@ class CLIApp:
             matches = self.find_project_by_name(path_input)
             if not matches: return None
             if len(matches) == 1:
-                print(f"✅ Dossier trouvé: {matches[0]}")
+                print(f"Dossier trouvé: {matches[0]}")
                 return matches[0]
                 
-            print(f"\n📂 Plusieurs dossiers trouvés pour '{path_input}' :")
+            print(f"\nPlusieurs dossiers trouvés pour '{path_input}' :")
             for i, m in enumerate(matches, 1):
                 print(f"  {i}. {m}")
             
@@ -2205,17 +2540,17 @@ class CLIApp:
                 print(f"{idx:<4} {name_str:<22} {date_str:<20} {size_str:<10} {txt_file}")
             print(f"\n{'#'*70}\n")
         except Exception as e:
-            print(f"❌ Erreur lors de la lecture de l'historique: {e}")
+            print(f"Erreur lors de la lecture de l'historique: {e}")
 
     def run_unpacker(self, file_path=None, dest_folder=None):
         """Désassembleur en mode CLI"""
         if not file_path:
-            file_path = input("📂 Chemin du fichier .txt à désassembler ('q' pour annuler) : ").strip()
+            file_path = input("Chemin du fichier .txt à désassembler ('q' pour annuler) : ").strip()
             if file_path.lower() in ('q', 'quit', 'annuler', 's'):
                 return
         
         if not os.path.exists(file_path):
-            print(f"❌ Erreur: Le fichier '{file_path}' n'existe pas.")
+            print(f"Erreur: Le fichier '{file_path}' n'existe pas.")
             return
 
         if not dest_folder:
@@ -2223,7 +2558,7 @@ class CLIApp:
             dest_folder = input(f"🏗️ Dossier de destination [{default_dest}] : ").strip() or default_dest
             
         try:
-            print(f"🚀 Reconstruction dans: {dest_folder}")
+            print(f"Reconstruction dans: {dest_folder}")
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
@@ -2242,9 +2577,9 @@ class CLIApp:
                     df.write(file_content.strip())
                 file_count += 1
                 
-            print(f"✅ Succès ! {file_count} fichiers créés dans {dest_folder}")
+            print(f"Succès ! {file_count} fichiers créés dans {dest_folder}")
         except Exception as e:
-            print(f"❌ Erreur: {e}")
+            print(f"Erreur: {e}")
 
     def apply_ai_changes(self, text, target_dir):
         """Parse le texte de l'IA et applique les changements avec backup"""
@@ -2255,7 +2590,7 @@ class CLIApp:
         matches = re.findall(pattern, text, re.DOTALL)
         
         if not matches:
-            print("⚠️ Aucun fichier détecté. Vérifiez le format (Titre du fichier puis bloc de code ```)")
+            print("Aucun fichier détecté. Vérifiez le format (Titre du fichier puis bloc de code ```)")
             return False
 
         # Création du dossier de backup
@@ -2282,7 +2617,7 @@ class CLIApp:
             with open(full_path, 'w', encoding='utf-8') as f:
                 f.write(content.strip())
             
-            print(f"✅ {rel_path} : {status}")
+            print(f"{rel_path} : {status}")
             modified_count += 1
             
         if modified_count > 0:
@@ -2293,20 +2628,20 @@ class CLIApp:
 
     def run_ai_assistant(self, target_dir=None):
         """Mode interactif pour coller une réponse d'IA"""
-        print(f"\n{'🤖 MODE ASSISTANT IA':^50}")
+        print(f"\n{'MODE ASSISTANT IA':^50}")
         print("="*50)
         
         if not target_dir:
             print(f"📍 Répertoire de travail : {os.getcwd()}")
-            path_input = input("📁 Dossier cible (Entrée pour '.') : ").strip() or "."
+            path_input = input("Dossier cible (Entrée pour '.') : ").strip() or "."
             target_dir = self.resolve_path(path_input)
             if not target_dir:
-                print("❌ Dossier introuvable.")
+                print("Dossier introuvable.")
                 return
 
         print("\n📝 Collez la réponse de l'IA ci-dessous.")
-        print("💡 (Sous Linux/Mac: Entrée puis Ctrl+D pour valider)")
-        print("💡 (Sous Windows: Entrée puis Ctrl+Z puis Entrée)")
+        print("(Sous Linux/Mac: Entrée puis Ctrl+D pour valider)")
+        print("(Sous Windows: Entrée puis Ctrl+Z puis Entrée)")
         print("-" * 30)
         
         lines = []
@@ -2319,10 +2654,10 @@ class CLIApp:
         
         ai_text = "".join(lines)
         if not ai_text.strip():
-            print("❌ Texte vide.")
+            print("Texte vide.")
             return
 
-        print("\n⚙️ Analyse et application des changements...")
+        print("\nAnalyse et application des changements...")
         self.apply_ai_changes(ai_text, target_dir)
 
     def run_interactive(self):
@@ -2332,7 +2667,7 @@ class CLIApp:
         folder = None
         while True:
             print(f"\n📍 Répertoire courant : {os.getcwd()}")
-            path_input = input("📁 Chemin ou nom du projet (Entrée pour '.', 'q' pour annuler) : ").strip()
+            path_input = input("Chemin ou nom du projet (Entrée pour '.', 'q' pour annuler) : ").strip()
             
             if path_input.lower() in ('q', 'quit', 'annuler'):
                 return
@@ -2343,7 +2678,7 @@ class CLIApp:
             folder = self.resolve_path(path_input)
             if folder:
                 break
-            print(f"❌ Erreur: Impossible de localiser '{path_input}'. Veuillez réessayer.")
+            print(f"Erreur: Impossible de localiser '{path_input}'. Veuillez réessayer.")
             
         self.args.path = folder
         folder = os.path.abspath(folder)
@@ -2355,7 +2690,7 @@ class CLIApp:
         gitignore_path = os.path.join(folder, ".gitignore")
         use_gitignore = False
         if os.path.exists(gitignore_path):
-            ans = input("🔍 Fichier .gitignore détecté. L'utiliser pour les exclusions ? (O/n): ").lower()
+            ans = input("Fichier .gitignore détecté. L'utiliser pour les exclusions ? (O/n): ").lower()
             if ans != 'n':
                 use_gitignore = True
 
@@ -2393,7 +2728,7 @@ class CLIApp:
         
         # Options rapides
         self.args.cl = input("📏 Fusionner les lignes ? (O/n): ").lower() != 'n'
-        self.args.yes = input("📂 Ouvrir le dossier à la fin ? (o/N): ").lower() == 'o'
+        self.args.yes = input("Ouvrir le dossier à la fin ? (o/N): ").lower() == 'o'
         
         self.run()
 
@@ -2421,7 +2756,7 @@ class CLIApp:
         folder = self.resolve_path(self.args.path)
         if not folder:
             tried_path = os.path.abspath(os.path.expanduser(self.args.path))
-            print(f"❌ Erreur: Le dossier '{self.args.path}' est introuvable.")
+            print(f"Erreur: Le dossier '{self.args.path}' est introuvable.")
             print(f"📍 Chemin tenté (absolu) : {tried_path}")
             return
 
@@ -2444,8 +2779,8 @@ class CLIApp:
         if self.args.include:
             include_overrides.extend([p.strip() for p in self.args.include.split(',')])
 
-        print(f"🚀 Analyse: {folder}")
-        print(f"📦 Nom: {project_name} | Fusion: {'OUI' if merge_lines else 'NON'}")
+        print(f"Analyse: {folder}")
+        print(f"Nom: {project_name} | Fusion: {'OUI' if merge_lines else 'NON'}")
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         export_folder = os.path.join(self.app_folder, f"{project_name}_{timestamp}")
@@ -2493,7 +2828,7 @@ class CLIApp:
                     except: continue
 
                     if current_size + file_size > max_size:
-                        print(f"\n⚠️ Limite de taille atteinte ({self.config.get('max_size_mb', 500)} Mo).")
+                        print(f"\nLimite de taille atteinte ({self.config.get('max_size_mb', 500)} Mo).")
                         print("👉 Utilisez l'option --unlimited ou -u pour ignorer cette limite.")
                         limit_reached = True
                         break
@@ -2518,7 +2853,7 @@ class CLIApp:
                         sys.stdout.write(f"\rProgression: {processed_files}/{total_files}...")
                         sys.stdout.flush()
 
-        print(f"\n✅ Export terminé !")
+        print(f"\nExport terminé !")
         print(f"📍 Fichier: {txt_file}")
         
         # Save to database (history)
@@ -2544,7 +2879,7 @@ class CLIApp:
 
         # Open folder if requested
         if getattr(self.args, 'yes', False):
-            print(f"📂 Ouverture du dossier: {export_folder}")
+            print(f"Ouverture du dossier: {export_folder}")
             if self.os_type == "Windows":
                 os.startfile(export_folder)
             elif self.os_type == "Darwin":
@@ -2564,10 +2899,10 @@ def run_setup_wizard():
     choice = input("\nVotre choix [2]: ").strip() or "2"
     
     if choice == "1":
-        print("\n📦 Installation des dépendances Terminal...")
+        print("\nInstallation des dépendances Terminal...")
         check_and_install_dependencies(mode="core")
     else:
-        print("\n📦 Installation complète (GUI + Terminal)...")
+        print("\nInstallation complète (GUI + Terminal)...")
         check_and_install_dependencies(mode="full")
 
     # Classe utilitaire pour configurer la commande globale sans Tkinter
@@ -2606,39 +2941,39 @@ def run_setup_wizard():
                         try:
                             self.create_desktop_shortcut()
                         except Exception as e:
-                            print(f"⚠️  Raccourci bureau : {e}")
+                            print(f" Raccourci bureau : {e}")
 
                 app_setup = SetupApp()
                 dummy_root.after(100, dummy_root.destroy)
                 dummy_root.mainloop()
             except Exception as e:
-                print(f"⚠️  Mode graphique indisponible ({e}). Configuration Terminal seulement.")
+                print(f" Mode graphique indisponible ({e}). Configuration Terminal seulement.")
                 m = MinimalSetup()
                 m.setup_global_command()
         else:
             m = MinimalSetup()
             m.setup_global_command()
 
-        print("\n✅ Configuration terminée avec succès !")
-        print("\n🚀 Commandes disponibles :")
+        print("\nConfiguration terminée avec succès !")
+        print("\nCommandes disponibles :")
         print("   - blx p        : Lancer un export")
         print("   - blx p ls     : Voir l'historique")
         print("   - blx p --gui  : Lancer l'interface graphique")
 
         if choice == "2":
             # Lancer l'interface graphique automatiquement et quitter le terminal
-            print("\n🚀 Lancement de l'interface graphique...")
+            print("\nLancement de l'interface graphique...")
             try:
                 cmd = [sys.executable, os.path.abspath(__file__), "--gui"]
                 subprocess.Popen(cmd, start_new_session=True)
             except Exception as e:
-                print(f"⚠️ Erreur lors du lancement : {e}")
+                print(f"Erreur lors du lancement : {e}")
             sys.exit(0)  # Fermer le terminal proprement
         else:
-            print("\n💡 Tapez 'blx p' pour commencer votre premier export.")
+            print("\nTapez 'blx p' pour commencer votre premier export.")
 
     except Exception as e:
-        print(f"❌ Erreur durant le setup: {e}")
+        print(f"Erreur durant le setup: {e}")
 
 def run_uninstall():
     """Désinstalle proprement l'application du système"""
@@ -2655,17 +2990,17 @@ def run_uninstall():
     app_folder = os.path.join(home, "ProjectExplorer")
     bin_dir = os.path.join(home, ".local", "bin")
     
-    print("🗑️  Suppression des fichiers de données...")
+    print(" Suppression des fichiers de données...")
     if os.path.exists(app_folder):
         shutil.rmtree(app_folder)
     
-    print("🗑️  Suppression des commandes globales...")
+    print(" Suppression des commandes globales...")
     for cmd in ["blx", "blx.bat", "bellox", "bellox.bat"]:
         cmd_path = os.path.join(bin_dir, cmd)
         if os.path.exists(cmd_path):
             os.remove(cmd_path)
     
-    print("🗑️  Suppression des raccourcis et icônes...")
+    print(" Suppression des raccourcis et icônes...")
     icon_path = os.path.join(home, ".local", "share", "icons", "project-explorer.png")
     if os.path.exists(icon_path): os.remove(icon_path)
     
@@ -2686,7 +3021,7 @@ def run_uninstall():
             os.remove(df)
             print(f"   ✓ Supprimé: {df}")
             
-    print("🧹 Nettoyage du PATH dans les fichiers shell...")
+    print("Nettoyage du PATH dans les fichiers shell...")
     for shell_rc in [".bashrc", ".zshrc", ".profile"]:
         rc_path = os.path.join(home, shell_rc)
         if os.path.exists(rc_path):
@@ -2713,7 +3048,7 @@ def run_uninstall():
                         f.write(cleaned)
             except: pass
 
-    print("\n✅ Désinstallation terminée avec succès.")
+    print("\nDésinstallation terminée avec succès.")
     print("Note: Le dossier contenant le script source n'a pas été touché.")
 
 def main():
@@ -2800,10 +3135,10 @@ def main():
                 print("1. 🖥️  Interface Graphique (GUI)")
                 print("2. ⌨️  Mode Terminal (Interactif)")
                 print("3. 📜 Voir l'historique (ls)")
-                print("4. ⚙️  Installer/Reconfigurer (blx new)")
-                print("5. 📦 Désassemblage (unpack)")
-                print("6. 🤖 Assistant IA (Paster GPT/Claude)")
-                print("7. 🗑️  Désinstaller")
+                print("4.  Installer/Reconfigurer (blx new)")
+                print("5. Désassemblage (unpack)")
+                print("6. Assistant IA (Paster GPT/Claude)")
+                print("7.  Désinstaller")
                 print("s. Quitter")
                 
                 choice = input("\nAction : ").strip().lower()
@@ -2833,7 +3168,7 @@ def main():
                     print("👋 À bientôt !")
                     break
                 else:
-                    print("⚠️ Choix invalide.")
+                    print("Choix invalide.")
             else:
                 # Mode non-TTY (Raccourci Bureau) -> GUI directement
                 check_and_install_dependencies(mode="full")
@@ -2853,5 +3188,5 @@ if __name__ == "__main__":
         print("\n👋 Sortie rapide demandée. Au revoir !")
         sys.exit(0)
     except Exception as e:
-        print(f"❌ Erreur système Fatale: {e}")
+        print(f"Erreur système Fatale: {e}")
         sys.exit(1)
